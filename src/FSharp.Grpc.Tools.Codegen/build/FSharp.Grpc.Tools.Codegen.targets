@@ -1,0 +1,94 @@
+<Project>
+
+    <!-- Stable output dir using BaseIntermediateOutputPath (obj/) so IDE and build agree -->
+    <PropertyGroup>
+        <FSharpGrpc_OutputDir Condition="'$(FSharpGrpc_OutputDir)' == ''">$(BaseIntermediateOutputPath)protos/</FSharpGrpc_OutputDir>
+    </PropertyGroup>
+
+    <!-- Static Compile items for IDE intellisense (after first build, files exist here) -->
+    <ItemGroup>
+        <Compile Include="$(FSharpGrpc_OutputDir)*.generated.fs"/>
+    </ItemGroup>
+
+    <!-- Resolve protoc from Grpc.Tools NuGet package -->
+    <Target Name="_FSharpGrpc_ResolveProtoc"
+            Condition="'$(FSharpGrpc_ProtocFullPath)' == '' and '$(PkgGrpc_Tools)' != ''">
+        <PropertyGroup>
+            <_FSharpGrpc_Os Condition="$([MSBuild]::IsOSPlatform('OSX'))">macosx</_FSharpGrpc_Os>
+            <_FSharpGrpc_Os Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux</_FSharpGrpc_Os>
+            <_FSharpGrpc_Os Condition="$([MSBuild]::IsOSPlatform('Windows'))">windows</_FSharpGrpc_Os>
+
+            <_FSharpGrpc_Cpu Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">x64</_FSharpGrpc_Cpu>
+            <_FSharpGrpc_Cpu Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">arm64</_FSharpGrpc_Cpu>
+            <_FSharpGrpc_Cpu Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X86'">x86</_FSharpGrpc_Cpu>
+
+            <_FSharpGrpc_ProtocExe Condition="$([MSBuild]::IsOSPlatform('Windows'))">protoc.exe</_FSharpGrpc_ProtocExe>
+            <_FSharpGrpc_ProtocExe Condition="!$([MSBuild]::IsOSPlatform('Windows'))">protoc</_FSharpGrpc_ProtocExe>
+
+            <FSharpGrpc_ProtocFullPath>$(PkgGrpc_Tools)/tools/$(_FSharpGrpc_Os)_$(_FSharpGrpc_Cpu)/$(_FSharpGrpc_ProtocExe)</FSharpGrpc_ProtocFullPath>
+
+            <!-- Fallback: ARM64 macOS may only have x64 via Rosetta -->
+            <FSharpGrpc_ProtocFullPath Condition="!Exists('$(FSharpGrpc_ProtocFullPath)') and '$(_FSharpGrpc_Cpu)' == 'arm64'">$(PkgGrpc_Tools)/tools/$(_FSharpGrpc_Os)_x64/$(_FSharpGrpc_ProtocExe)</FSharpGrpc_ProtocFullPath>
+
+            <FSharpGrpc_WktPath>$(PkgGrpc_Tools)/build/native/include</FSharpGrpc_WktPath>
+        </PropertyGroup>
+    </Target>
+
+    <!-- Resolve the codegen tool DLL -->
+    <PropertyGroup>
+        <_FSharpGrpc_CodegenDll Condition="'$(_FSharpGrpc_CodegenDll)' == ''">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'bin', '$(Configuration)', 'net8.0', 'FSharp.Grpc.Tools.Codegen.dll'))</_FSharpGrpc_CodegenDll>
+    </PropertyGroup>
+
+    <!-- Generate F# from .proto files -->
+    <Target Name="FSharpGrpc_GenerateProto"
+            BeforeTargets="BeforeCompile"
+            DependsOnTargets="_FSharpGrpc_ResolveProtoc"
+            Condition="'@(Protobuf)' != ''"
+            Inputs="@(Protobuf)"
+            Outputs="@(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).generated.fs');
+                     @(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).server.generated.fs');
+                     @(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).client.generated.fs')">
+
+        <MakeDir Directories="$(FSharpGrpc_OutputDir)"/>
+
+        <PropertyGroup>
+            <_FSharpGrpc_ProtocArg Condition="'$(FSharpGrpc_ProtocFullPath)' != ''">--protoc "$(FSharpGrpc_ProtocFullPath)"</_FSharpGrpc_ProtocArg>
+            <_FSharpGrpc_WktArg Condition="'$(FSharpGrpc_WktPath)' != ''">--proto-path "$(FSharpGrpc_WktPath)"</_FSharpGrpc_WktArg>
+            <_FSharpGrpc_GrpcServicesArg Condition="'%(Protobuf.GrpcServices)' != ''">--grpc-services %(Protobuf.GrpcServices)</_FSharpGrpc_GrpcServicesArg>
+        </PropertyGroup>
+
+        <Exec Command="dotnet &quot;$(_FSharpGrpc_CodegenDll)&quot; $(_FSharpGrpc_ProtocArg) $(_FSharpGrpc_WktArg) $(_FSharpGrpc_GrpcServicesArg) --output-dir &quot;$(FSharpGrpc_OutputDir)&quot; &quot;%(Protobuf.FullPath)&quot;"
+              StandardOutputImportance="low"/>
+    </Target>
+
+    <!-- F# compile ordering: generated files BEFORE user code -->
+    <Target Name="_FSharpGrpc_PrependCompile"
+            BeforeTargets="BeforeCompile"
+            DependsOnTargets="FSharpGrpc_GenerateProto"
+            Condition="'@(Protobuf)' != ''">
+
+        <ItemGroup>
+            <!-- Remove the statically-added generated files (IDE put them at the end) -->
+            <Compile Remove="$(FSharpGrpc_OutputDir)*.generated.fs"/>
+            <!-- Snapshot user files -->
+            <_FSharpGrpc_UserCompile Include="@(Compile)"/>
+            <!-- Rebuild: generated first, then user code -->
+            <Compile Remove="@(Compile)"/>
+            <Compile Include="$(FSharpGrpc_OutputDir)*.generated.fs"/>
+            <Compile Include="@(_FSharpGrpc_UserCompile)"/>
+        </ItemGroup>
+    </Target>
+
+    <!-- Clean generated files -->
+    <Target Name="FSharpGrpc_Clean"
+            AfterTargets="CoreClean"
+            Condition="'@(Protobuf)' != ''">
+        <Delete Files="@(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).generated.fs')"
+                TreatErrorsAsWarnings="true"/>
+        <Delete Files="@(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).server.generated.fs')"
+                TreatErrorsAsWarnings="true"/>
+        <Delete Files="@(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).client.generated.fs')"
+                TreatErrorsAsWarnings="true"/>
+    </Target>
+
+</Project>

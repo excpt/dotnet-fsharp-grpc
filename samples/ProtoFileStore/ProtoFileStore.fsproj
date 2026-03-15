@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <!-- Import codegen build integration (via NuGet this happens automatically) -->
-    <Import Project="../../src/Grpc.FSharp.Tools.Codegen/build/Grpc.FSharp.Tools.Codegen.props"/>
-    <Import Project="../../src/Grpc.FSharp.Tools.Codegen/build/Grpc.FSharp.Tools.Codegen.targets"/>
+    <Import Project="../../src/FSharp.Grpc.Tools.Codegen/build/FSharp.Grpc.Tools.Codegen.props"/>
+    <Import Project="../../src/FSharp.Grpc.Tools.Codegen/build/FSharp.Grpc.Tools.Codegen.targets"/>
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -26,7 +26,7 @@
 
     <!-- Ensure the codegen tool is built before this project -->
     <ItemGroup>
-        <ProjectReference Include="../../src/Grpc.FSharp.Tools.Codegen/Grpc.FSharp.Tools.Codegen.fsproj"
+        <ProjectReference Include="../../src/FSharp.Grpc.Tools.Codegen/FSharp.Grpc.Tools.Codegen.fsproj"
                           ReferenceOutputAssembly="false"
                           SkipGetTargetFrameworkProperties="true"/>
     </ItemGroup>

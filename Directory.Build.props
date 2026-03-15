@@ -1,6 +1,6 @@
 <Project>
     <PropertyGroup>
-        <RootNamespace>Grpc.FSharp</RootNamespace>
+        <RootNamespace>FSharp.Grpc</RootNamespace>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <Authors>contributors</Authors>
         <RepositoryUrl>https://github.com/excpt/dotnet-grpc-fsharp</RepositoryUrl>

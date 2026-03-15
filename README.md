@@ -1,4 +1,4 @@
-# Grpc.FSharp
+# FSharp.Grpc
 
 F# code generation from `.proto` files. Generates F# records, enums, and discriminated unions with binary and JSON serialization. Generates gRPC server and client stubs.
 
@@ -37,7 +37,7 @@ let json = Person.encodeJson alice
 ```bash
 dotnet new console -lang F# -n MyApp
 cd MyApp
-dotnet add package Grpc.FSharp.Tools.Codegen
+dotnet add package FSharp.Grpc.Tools.Codegen
 ```
 
 Add a proto file and register it in your `.fsproj`:

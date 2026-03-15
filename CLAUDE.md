@@ -4,7 +4,7 @@
 
 F# code generator for Protocol Buffers. Generates F# records, enums, discriminated unions, binary/JSON serialization, and gRPC server/client stubs from `.proto` files.
 
-Single NuGet package: `Grpc.FSharp.Tools.Codegen`. No runtime libraries — generated code depends only on `Google.Protobuf` and `Grpc.Core.Api`.
+Single NuGet package: `FSharp.Grpc.Tools.Codegen`. No runtime libraries — generated code depends only on `Google.Protobuf` and `Grpc.Core.Api`.
 
 ## Development
 
@@ -34,20 +34,20 @@ CI enforces F# formatting on every PR.
 
 Write tests first, then implement. The expected workflow:
 
-1. Add or update expected output files in `tests/Grpc.FSharp.Tools.Tests/expected/`
+1. Add or update expected output files in `tests/FSharp.Grpc.Tools.Tests/expected/`
 2. Add or update test cases in the corresponding test file
 3. Run `dotnet test` — tests fail
-4. Implement the feature in `src/Grpc.FSharp.Tools/`
+4. Implement the feature in `src/FSharp.Grpc.Tools/`
 5. Run `dotnet test` — tests pass
 
 For gRPC integration tests, write the test in `GrpcIntegrationTests.fs` first, then update the hand-written generated code to match.
 
 ### Benchmarks
 
-Benchmarks are in `benchmarks/Grpc.FSharp.Benchmarks/`. Binary and JSON benchmarks compare F# generated code against C#'s `Google.Protobuf`.
+Benchmarks are in `benchmarks/FSharp.Grpc.Benchmarks/`. Binary and JSON benchmarks compare F# generated code against C#'s `Google.Protobuf`.
 
 ```bash
-dotnet run --project benchmarks/Grpc.FSharp.Benchmarks/ -c Release -f net10.0
+dotnet run --project benchmarks/FSharp.Grpc.Benchmarks/ -c Release -f net10.0
 ```
 
 Results go to `BenchmarkDotNet.Artifacts/results/` (gitignored).
@@ -56,12 +56,12 @@ Results go to `BenchmarkDotNet.Artifacts/results/` (gitignored).
 
 ### Source projects
 
-- `src/Grpc.FSharp.Tools/` — code generation library (proto → F# AST → formatted code)
-- `src/Grpc.FSharp.Tools.Codegen/` — CLI tool + MSBuild targets (the NuGet package)
+- `src/FSharp.Grpc.Tools/` — code generation library (proto → F# AST → formatted code)
+- `src/FSharp.Grpc.Tools.Codegen/` — CLI tool + MSBuild targets (the NuGet package)
 
 ### Code generation
 
-The code generator uses Fabulous.AST to construct F# syntax trees, formatted by Fantomas. Key modules in `src/Grpc.FSharp.Tools/`:
+The code generator uses Fabulous.AST to construct F# syntax trees, formatted by Fantomas. Key modules in `src/FSharp.Grpc.Tools/`:
 
 - `TypeMapping.fs` — proto type → F# type mapping
 - `WireFormat.fs` — wire format constants
@@ -83,12 +83,12 @@ Prefer AST builders when possible. Fall back to `ConstantExpr` only for expressi
 
 ### Test projects
 
-- `tests/Grpc.FSharp.Tools.Tests/` — codegen unit tests. Expected output in `expected/*.fs.expected`. Tests compile proto files with `protoc`, run the code generator, and compare output character-by-character.
-- `tests/Grpc.FSharp.AspNetCore.Tests/` — gRPC integration tests. Real gRPC server + client via ASP.NET Core TestHost. Hand-written generated code for Greeter and TestService (all 4 streaming patterns).
-- `tests/Grpc.FSharp.Integration.Tests.FSharp/` — F# interop type library. Hand-written F# types matching `interop.proto` for cross-language testing.
-- `tests/Grpc.FSharp.Integration.Tests/` — C# cross-language serialization tests. 50 tests verifying byte-exact wire compatibility between F# and C# protobuf.
-- `tests/Grpc.FSharp.GrpcCrossLang.Tests.FSharp/` — F# gRPC types for cross-language testing.
-- `tests/Grpc.FSharp.GrpcCrossLang.Tests/` — C# cross-language gRPC tests. 10 tests: F# server + C# client and C# server + F# client, all 4 streaming patterns.
+- `tests/FSharp.Grpc.Tools.Tests/` — codegen unit tests. Expected output in `expected/*.fs.expected`. Tests compile proto files with `protoc`, run the code generator, and compare output character-by-character.
+- `tests/FSharp.Grpc.AspNetCore.Tests/` — gRPC integration tests. Real gRPC server + client via ASP.NET Core TestHost. Hand-written generated code for Greeter and TestService (all 4 streaming patterns).
+- `tests/FSharp.Grpc.Integration.Tests.FSharp/` — F# interop type library. Hand-written F# types matching `interop.proto` for cross-language testing.
+- `tests/FSharp.Grpc.Integration.Tests/` — C# cross-language serialization tests. 50 tests verifying byte-exact wire compatibility between F# and C# protobuf.
+- `tests/FSharp.Grpc.GrpcCrossLang.Tests.FSharp/` — F# gRPC types for cross-language testing.
+- `tests/FSharp.Grpc.GrpcCrossLang.Tests/` — C# cross-language gRPC tests. 10 tests: F# server + C# client and C# server + F# client, all 4 streaming patterns.
 
 Total: 107 tests.
 
@@ -96,10 +96,10 @@ Total: 107 tests.
 
 Several test projects contain hand-written `.fs` files that match what the code generator produces. When changing the generated code pattern, update these files to match:
 
-- `tests/Grpc.FSharp.AspNetCore.Tests/` — `Greeter.{Messages,Server,Client}.fs`, `TestService.{Messages,Server,Client}.fs`
-- `tests/Grpc.FSharp.Integration.Tests.FSharp/` — `Greeter.{Messages,Server,Client}.fs`, `TestService.{Messages,Server,Client}.fs`
-- `tests/Grpc.FSharp.GrpcCrossLang.Tests.FSharp/` — `CrossLang.{Messages,Server,Client}.fs`
-- `tests/Grpc.FSharp.Tools.Tests/expected/` — `*.fs.expected` files
+- `tests/FSharp.Grpc.AspNetCore.Tests/` — `Greeter.{Messages,Server,Client}.fs`, `TestService.{Messages,Server,Client}.fs`
+- `tests/FSharp.Grpc.Integration.Tests.FSharp/` — `Greeter.{Messages,Server,Client}.fs`, `TestService.{Messages,Server,Client}.fs`
+- `tests/FSharp.Grpc.GrpcCrossLang.Tests.FSharp/` — `CrossLang.{Messages,Server,Client}.fs`
+- `tests/FSharp.Grpc.Tools.Tests/expected/` — `*.fs.expected` files
 
 ### Generated code patterns
 

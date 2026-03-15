@@ -12,7 +12,7 @@ cd MyServer
 ## Step 2: Install packages
 
 ```bash
-dotnet add package Grpc.FSharp.Tools.Codegen
+dotnet add package FSharp.Grpc.Tools.Codegen
 dotnet add package Grpc.AspNetCore.Server
 ```
 
@@ -57,7 +57,7 @@ Set `GrpcServices="Server"` on the `<Protobuf>` item:
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Grpc.FSharp.Tools.Codegen"/>
+        <PackageReference Include="FSharp.Grpc.Tools.Codegen"/>
         <PackageReference Include="Grpc.AspNetCore.Server"/>
     </ItemGroup>
 

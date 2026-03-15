@@ -12,7 +12,7 @@ cd MyApp
 ## Step 2: Install the package
 
 ```bash
-dotnet add package Grpc.FSharp.Tools.Codegen
+dotnet add package FSharp.Grpc.Tools.Codegen
 ```
 
 ## Step 3: Add a proto file
@@ -53,7 +53,7 @@ message Todo {
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Grpc.FSharp.Tools.Codegen"/>
+        <PackageReference Include="FSharp.Grpc.Tools.Codegen"/>
     </ItemGroup>
 
 </Project>
@@ -67,7 +67,7 @@ open Myapp
 let todo =
     { Todo.empty with
         Id = "TODO-001"
-        Title = "Learn Grpc.FSharp"
+        Title = "Learn FSharp.Grpc"
         Done = true }
 
 // Binary
@@ -76,7 +76,7 @@ let decoded = Todo.decode bytes
 
 // JSON
 let json = Todo.encodeJson todo
-// {"id":"TODO-001","title":"Learn Grpc.FSharp","done":true}
+// {"id":"TODO-001","title":"Learn FSharp.Grpc","done":true}
 let fromJson = Todo.decodeJson json
 
 // Structural equality
@@ -297,7 +297,7 @@ match user.HomeAddress with
 
 ```xml
 <PropertyGroup>
-    <GrpcFSharp_OutputDir>$(BaseIntermediateOutputPath)generated/</GrpcFSharp_OutputDir>
+    <FSharpGrpc_OutputDir>$(BaseIntermediateOutputPath)generated/</FSharpGrpc_OutputDir>
 </PropertyGroup>
 ```
 
@@ -305,7 +305,7 @@ match user.HomeAddress with
 
 ```xml
 <PropertyGroup>
-    <GrpcFSharp_ProtocFullPath>/usr/local/bin/protoc</GrpcFSharp_ProtocFullPath>
+    <FSharpGrpc_ProtocFullPath>/usr/local/bin/protoc</FSharpGrpc_ProtocFullPath>
 </PropertyGroup>
 ```
 

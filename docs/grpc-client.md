@@ -12,7 +12,7 @@ cd MyClient
 ## Step 2: Install packages
 
 ```bash
-dotnet add package Grpc.FSharp.Tools.Codegen
+dotnet add package FSharp.Grpc.Tools.Codegen
 dotnet add package Grpc.Net.Client
 ```
 
@@ -58,7 +58,7 @@ Set `GrpcServices="Client"` on the `<Protobuf>` item:
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Grpc.FSharp.Tools.Codegen"/>
+        <PackageReference Include="FSharp.Grpc.Tools.Codegen"/>
         <PackageReference Include="Grpc.Net.Client"/>
     </ItemGroup>
 
