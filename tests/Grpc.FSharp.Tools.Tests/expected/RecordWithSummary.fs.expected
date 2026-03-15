@@ -1,0 +1,2 @@
+/// <summary>Represents a user in the system.</summary>
+type User = { Name: string }

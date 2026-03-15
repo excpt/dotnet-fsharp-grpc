@@ -1,0 +1,13 @@
+syntax = "proto3";
+package shared;
+
+enum Currency {
+  CURRENCY_UNKNOWN = 0;
+  CURRENCY_USD = 1;
+  CURRENCY_EUR = 2;
+}
+
+message Money {
+  int64 amount_micros = 1;
+  Currency currency = 2;
+}

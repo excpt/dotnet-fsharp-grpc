@@ -1,0 +1,192 @@
+namespace Example
+
+type Address = { Street: string; City: string }
+
+module Address =
+    let empty = { Street = ""; City = "" }
+
+    let computeSize (value: Address) : int =
+        let mutable size = 0
+
+        if value.Street <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Street)
+
+        if value.City <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.City)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Address) : unit =
+        if value.Street <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Street)
+
+        if value.City <> "" then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.City)
+
+    let encode (value: Address) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Address =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Street = ""
+        let mutable _City = ""
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Street <- input.ReadString()
+            | 2 -> _City <- input.ReadString()
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Street = _Street; City = _City }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
+        writer.WriteStartObject()
+
+        if value.Street <> "" then
+            writer.WriteString("street", value.Street)
+
+        if value.City <> "" then
+            writer.WriteString("city", value.City)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Address) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Address =
+        let mutable _Street = ""
+        let mutable _City = ""
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "street" -> _Street <- prop.Value.GetString()
+            | "city" -> _City <- prop.Value.GetString()
+            | _ -> ()
+
+        { Street = _Street; City = _City }
+
+    let decodeJson (json: string) : Address =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement
+
+type Person =
+    { Name: string
+      HomeAddress: Address option }
+
+module Person =
+    let empty = { Name = ""; HomeAddress = None }
+
+    let computeSize (value: Person) : int =
+        let mutable size = 0
+
+        if value.Name <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+
+        match value.HomeAddress with
+        | Some v ->
+            let subSize = Address.computeSize v
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Person) : unit =
+        if value.Name <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Name)
+
+        match value.HomeAddress with
+        | Some v ->
+            let subSize = Address.computeSize v
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Address.writeTo output v
+        | None -> ()
+
+    let encode (value: Person) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Person =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Name = ""
+        let mutable _HomeAddress = None
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Name <- input.ReadString()
+            | 2 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _HomeAddress <- Some(Address.decode subBytes)
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Name = _Name
+          HomeAddress = _HomeAddress }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Person) : unit =
+        writer.WriteStartObject()
+
+        if value.Name <> "" then
+            writer.WriteString("name", value.Name)
+
+        match value.HomeAddress with
+        | Some v ->
+            writer.WritePropertyName("homeAddress")
+            Address.writeJsonTo writer v
+        | None -> ()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Person) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Person =
+        let mutable _Name = ""
+        let mutable _HomeAddress = None
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "name" -> _Name <- prop.Value.GetString()
+            | "homeAddress" -> _HomeAddress <- Some(Address.decodeJsonElement prop.Value)
+            | "home_address" -> _HomeAddress <- Some(Address.decodeJsonElement prop.Value)
+            | _ -> ()
+
+        { Name = _Name
+          HomeAddress = _HomeAddress }
+
+    let decodeJson (json: string) : Person =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

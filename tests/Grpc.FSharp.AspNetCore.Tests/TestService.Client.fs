@@ -1,0 +1,61 @@
+namespace Testservice
+
+open Grpc.Core
+open Grpc.Net.Client
+open System.Threading.Tasks
+
+type TestServiceClient =
+    { Ping: PingRequest -> Task<PingReply>
+      ServerStream: PingRequest -> AsyncServerStreamingCall<StreamItem>
+      ClientStream: unit -> AsyncClientStreamingCall<StreamItem, Summary>
+      BidiStream: unit -> AsyncDuplexStreamingCall<StreamItem, StreamItem> }
+
+module TestServiceClient =
+    let private pingMethod =
+        Method<PingRequest, PingReply>(
+            MethodType.Unary,
+            "testservice.TestService",
+            "Ping",
+            Marshaller(System.Func<_, _>(PingRequest.encode), System.Func<_, _>(PingRequest.decode)),
+            Marshaller(System.Func<_, _>(PingReply.encode), System.Func<_, _>(PingReply.decode))
+        )
+
+    let private serverStreamMethod =
+        Method<PingRequest, StreamItem>(
+            MethodType.ServerStreaming,
+            "testservice.TestService",
+            "ServerStream",
+            Marshaller(System.Func<_, _>(PingRequest.encode), System.Func<_, _>(PingRequest.decode)),
+            Marshaller(System.Func<_, _>(StreamItem.encode), System.Func<_, _>(StreamItem.decode))
+        )
+
+    let private clientStreamMethod =
+        Method<StreamItem, Summary>(
+            MethodType.ClientStreaming,
+            "testservice.TestService",
+            "ClientStream",
+            Marshaller(System.Func<_, _>(StreamItem.encode), System.Func<_, _>(StreamItem.decode)),
+            Marshaller(System.Func<_, _>(Summary.encode), System.Func<_, _>(Summary.decode))
+        )
+
+    let private bidiStreamMethod =
+        Method<StreamItem, StreamItem>(
+            MethodType.DuplexStreaming,
+            "testservice.TestService",
+            "BidiStream",
+            Marshaller(System.Func<_, _>(StreamItem.encode), System.Func<_, _>(StreamItem.decode)),
+            Marshaller(System.Func<_, _>(StreamItem.encode), System.Func<_, _>(StreamItem.decode))
+        )
+
+    let fromInvoker (invoker: CallInvoker) : TestServiceClient =
+        { Ping = fun request -> invoker.AsyncUnaryCall(pingMethod, null, CallOptions(), request).ResponseAsync
+          ServerStream =
+            fun request -> invoker.AsyncServerStreamingCall(serverStreamMethod, null, CallOptions(), request)
+          ClientStream = fun () -> invoker.AsyncClientStreamingCall(clientStreamMethod, null, CallOptions())
+          BidiStream = fun () -> invoker.AsyncDuplexStreamingCall(bidiStreamMethod, null, CallOptions()) }
+
+    let fromChannel (channel: GrpcChannel) : TestServiceClient =
+        fromInvoker (channel.CreateCallInvoker())
+
+    let create (address: string) : TestServiceClient =
+        fromChannel (GrpcChannel.ForAddress(address))

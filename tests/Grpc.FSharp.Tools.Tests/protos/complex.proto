@@ -1,0 +1,57 @@
+syntax = "proto3";
+package acme.platform.v1;
+
+enum UserStatus {
+  USER_STATUS_UNKNOWN = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_SUSPENDED = 2;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string country_code = 3;
+  optional string zip_code = 4;
+}
+
+message Organization {
+  string name = 1;
+  Address billing_address = 2;
+  repeated string domain_names = 3;
+  map<string, string> metadata = 4;
+
+  message Department {
+    string name = 1;
+    repeated User members = 2;
+
+    enum Priority {
+      PRIORITY_UNSPECIFIED = 0;
+      PRIORITY_LOW = 1;
+      PRIORITY_HIGH = 2;
+    }
+
+    Priority priority = 3;
+  }
+
+  repeated Department departments = 5;
+}
+
+message User {
+  string id = 1;
+  string display_name = 2;
+  string email = 3;
+  UserStatus status = 4;
+  Address home_address = 5;
+  repeated Address other_addresses = 6;
+  map<string, int32> scores = 7;
+  optional double rating = 8;
+  Organization organization = 9;
+
+  oneof contact {
+    string phone_number = 10;
+    string slack_handle = 11;
+  }
+
+  // Self-referencing: a user can have a manager who is also a user
+  User manager = 12;
+}

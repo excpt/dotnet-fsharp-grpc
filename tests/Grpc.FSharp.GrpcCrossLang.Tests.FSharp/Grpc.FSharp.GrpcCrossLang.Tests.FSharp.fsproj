@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="CrossLang.Messages.fs"/>
+        <Compile Include="CrossLang.Server.fs"/>
+        <Compile Include="CrossLang.Client.fs"/>
+        <Compile Include="Helpers.fs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf"/>
+        <PackageReference Include="Grpc.Core.Api"/>
+        <PackageReference Include="Grpc.Net.Client"/>
+    </ItemGroup>
+
+    
+
+</Project>

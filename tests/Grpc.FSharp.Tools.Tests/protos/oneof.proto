@@ -1,0 +1,10 @@
+syntax = "proto3";
+package example;
+
+message Payment {
+  string id = 1;
+  oneof method {
+    string credit_card = 2;
+    string bank_account = 3;
+  }
+}

@@ -1,0 +1,7 @@
+syntax = "proto3";
+package example;
+
+message WithMap {
+  map<string, string> labels = 1;
+  map<string, int32> scores = 2;
+}

@@ -1,0 +1,10 @@
+syntax = "proto3";
+package billing;
+
+import "shared.proto";
+
+message Invoice {
+  string id = 1;
+  shared.Money total = 2;
+  repeated shared.Money line_items = 3;
+}

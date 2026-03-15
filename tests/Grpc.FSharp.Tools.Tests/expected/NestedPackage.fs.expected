@@ -1,0 +1,89 @@
+namespace Example.Accounts.V1
+
+type Account = { Id: string; DisplayName: string }
+
+module Account =
+    let empty = { Id = ""; DisplayName = "" }
+
+    let computeSize (value: Account) : int =
+        let mutable size = 0
+
+        if value.Id <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+
+        if value.DisplayName <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.DisplayName)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Account) : unit =
+        if value.Id <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Id)
+
+        if value.DisplayName <> "" then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.DisplayName)
+
+    let encode (value: Account) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Account =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Id = ""
+        let mutable _DisplayName = ""
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Id <- input.ReadString()
+            | 2 -> _DisplayName <- input.ReadString()
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Id = _Id; DisplayName = _DisplayName }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Account) : unit =
+        writer.WriteStartObject()
+
+        if value.Id <> "" then
+            writer.WriteString("id", value.Id)
+
+        if value.DisplayName <> "" then
+            writer.WriteString("displayName", value.DisplayName)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Account) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Account =
+        let mutable _Id = ""
+        let mutable _DisplayName = ""
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "id" -> _Id <- prop.Value.GetString()
+            | "displayName" -> _DisplayName <- prop.Value.GetString()
+            | "display_name" -> _DisplayName <- prop.Value.GetString()
+            | _ -> ()
+
+        { Id = _Id; DisplayName = _DisplayName }
+
+    let decodeJson (json: string) : Account =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

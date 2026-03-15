@@ -1,0 +1,6 @@
+type User =
+    {
+        /// <summary>The user's name.</summary>
+        Name: string
+        Age: int
+    }

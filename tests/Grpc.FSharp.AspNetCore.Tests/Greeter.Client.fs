@@ -1,0 +1,27 @@
+namespace Greeter
+
+open Grpc.Core
+open Grpc.Net.Client
+open System.Threading.Tasks
+
+type GreeterClient =
+    { SayHello: HelloRequest -> Task<HelloReply> }
+
+module GreeterClient =
+    let private sayHelloMethod =
+        Method<HelloRequest, HelloReply>(
+            MethodType.Unary,
+            "greeter.Greeter",
+            "SayHello",
+            Marshaller(System.Func<_, _>(HelloRequest.encode), System.Func<_, _>(HelloRequest.decode)),
+            Marshaller(System.Func<_, _>(HelloReply.encode), System.Func<_, _>(HelloReply.decode))
+        )
+
+    let fromInvoker (invoker: CallInvoker) : GreeterClient =
+        { SayHello = fun request -> invoker.AsyncUnaryCall(sayHelloMethod, null, CallOptions(), request).ResponseAsync }
+
+    let fromChannel (channel: GrpcChannel) : GreeterClient =
+        fromInvoker (channel.CreateCallInvoker())
+
+    let create (address: string) : GreeterClient =
+        fromChannel (GrpcChannel.ForAddress(address))

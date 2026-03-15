@@ -1,0 +1,113 @@
+namespace Example
+
+type Status =
+    | StatusUnknown = 0
+    | StatusActive = 1
+    | StatusInactive = 2
+
+module Status =
+    let toJsonName (value: Status) : string =
+        match value with
+        | Status.StatusUnknown -> "STATUS_UNKNOWN"
+        | Status.StatusActive -> "STATUS_ACTIVE"
+        | Status.StatusInactive -> "STATUS_INACTIVE"
+        | _ -> string (int value)
+
+    let fromJsonName (name: string) : Status =
+        match name with
+        | "STATUS_UNKNOWN" -> Status.StatusUnknown
+        | "STATUS_ACTIVE" -> Status.StatusActive
+        | "STATUS_INACTIVE" -> Status.StatusInactive
+        | _ ->
+            match System.Int32.TryParse(name) with | true, v -> LanguagePrimitives.EnumOfValue v | _ -> LanguagePrimitives.EnumOfValue 0
+
+type Account = { Name: string; Status: Status }
+
+module Account =
+    let empty =
+        { Name = ""
+          Status = LanguagePrimitives.EnumOfValue 0 }
+
+    let computeSize (value: Account) : int =
+        let mutable size = 0
+
+        if value.Name <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+
+        if int value.Status <> 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Status)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Account) : unit =
+        if value.Name <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Name)
+
+        if int value.Status <> 0 then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(int value.Status)
+
+    let encode (value: Account) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Account =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Name = ""
+        let mutable _Status = LanguagePrimitives.EnumOfValue 0
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Name <- input.ReadString()
+            | 2 -> _Status <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Name = _Name; Status = _Status }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Account) : unit =
+        writer.WriteStartObject()
+
+        if value.Name <> "" then
+            writer.WriteString("name", value.Name)
+
+        if int value.Status <> 0 then
+            writer.WriteString("status", Status.toJsonName value.Status)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Account) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Account =
+        let mutable _Name = ""
+        let mutable _Status = LanguagePrimitives.EnumOfValue 0
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "name" -> _Name <- prop.Value.GetString()
+            | "status" ->
+                _Status <-
+                    Status.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())
+            | _ -> ()
+
+        { Name = _Name; Status = _Status }
+
+    let decodeJson (json: string) : Account =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

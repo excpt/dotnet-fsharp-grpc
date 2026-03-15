@@ -1,0 +1,178 @@
+namespace Example
+
+type Address = { Street: string; City: string }
+
+module Address =
+    let empty = { Street = ""; City = "" }
+
+    let computeSize (value: Address) : int =
+        let mutable size = 0
+
+        if value.Street <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Street)
+
+        if value.City <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.City)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Address) : unit =
+        if value.Street <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Street)
+
+        if value.City <> "" then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.City)
+
+    let encode (value: Address) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Address =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Street = ""
+        let mutable _City = ""
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Street <- input.ReadString()
+            | 2 -> _City <- input.ReadString()
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Street = _Street; City = _City }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
+        writer.WriteStartObject()
+
+        if value.Street <> "" then
+            writer.WriteString("street", value.Street)
+
+        if value.City <> "" then
+            writer.WriteString("city", value.City)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Address) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Address =
+        let mutable _Street = ""
+        let mutable _City = ""
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "street" -> _Street <- prop.Value.GetString()
+            | "city" -> _City <- prop.Value.GetString()
+            | _ -> ()
+
+        { Street = _Street; City = _City }
+
+    let decodeJson (json: string) : Address =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement
+
+type Company = { Name: string; EmployeeCount: int }
+
+module Company =
+    let empty = { Name = ""; EmployeeCount = 0 }
+
+    let computeSize (value: Company) : int =
+        let mutable size = 0
+
+        if value.Name <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+
+        if value.EmployeeCount <> 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.EmployeeCount)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Company) : unit =
+        if value.Name <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Name)
+
+        if value.EmployeeCount <> 0 then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(value.EmployeeCount)
+
+    let encode (value: Company) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Company =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Name = ""
+        let mutable _EmployeeCount = 0
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Name <- input.ReadString()
+            | 2 -> _EmployeeCount <- input.ReadInt32()
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Name = _Name
+          EmployeeCount = _EmployeeCount }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Company) : unit =
+        writer.WriteStartObject()
+
+        if value.Name <> "" then
+            writer.WriteString("name", value.Name)
+
+        if value.EmployeeCount <> 0 then
+            writer.WriteNumber("employeeCount", value.EmployeeCount)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Company) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Company =
+        let mutable _Name = ""
+        let mutable _EmployeeCount = 0
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "name" -> _Name <- prop.Value.GetString()
+            | "employeeCount" -> _EmployeeCount <- prop.Value.GetInt32()
+            | "employee_count" -> _EmployeeCount <- prop.Value.GetInt32()
+            | _ -> ()
+
+        { Name = _Name
+          EmployeeCount = _EmployeeCount }
+
+    let decodeJson (json: string) : Company =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

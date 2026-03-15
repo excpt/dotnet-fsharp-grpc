@@ -1,0 +1,7 @@
+syntax = "proto3";
+package example;
+
+message WithOptional {
+  optional string nickname = 1;
+  optional int32 age = 2;
+}

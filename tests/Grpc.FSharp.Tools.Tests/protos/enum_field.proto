@@ -1,0 +1,13 @@
+syntax = "proto3";
+package example;
+
+enum Status {
+  STATUS_UNKNOWN = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+}
+
+message Account {
+  string name = 1;
+  Status status = 2;
+}

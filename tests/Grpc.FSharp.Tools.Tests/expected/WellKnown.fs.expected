@@ -1,0 +1,283 @@
+namespace Example
+
+type Event =
+    { Id: string
+      CreatedAt: Google.Protobuf.WellKnownTypes.Timestamp option
+      Ttl: Google.Protobuf.WellKnownTypes.Duration option
+      Description: string option
+      Priority: int option
+      Active: bool option
+      Payload: Google.Protobuf.WellKnownTypes.Any option }
+
+module Event =
+    let empty =
+        { Id = ""
+          CreatedAt = None
+          Ttl = None
+          Description = None
+          Priority = None
+          Active = None
+          Payload = None }
+
+    let computeSize (value: Event) : int =
+        let mutable size = 0
+
+        if value.Id <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+
+        match value.CreatedAt with
+        | Some v ->
+            let subSize = v.CalculateSize()
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        match value.Ttl with
+        | Some v ->
+            let subSize = v.CalculateSize()
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        match value.Description with
+        | Some v ->
+            let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
+            wrapper.Value <- v
+            let subSize = wrapper.CalculateSize()
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        match value.Priority with
+        | Some v ->
+            let wrapper = Google.Protobuf.WellKnownTypes.Int32Value()
+            wrapper.Value <- v
+            let subSize = wrapper.CalculateSize()
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        match value.Active with
+        | Some v ->
+            let wrapper = Google.Protobuf.WellKnownTypes.BoolValue()
+            wrapper.Value <- v
+            let subSize = wrapper.CalculateSize()
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(6) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        match value.Payload with
+        | Some v ->
+            let subSize = v.CalculateSize()
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Event) : unit =
+        if value.Id <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Id)
+
+        match value.CreatedAt with
+        | Some v ->
+            let subSize = v.CalculateSize()
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            v.WriteTo(output)
+        | None -> ()
+
+        match value.Ttl with
+        | Some v ->
+            let subSize = v.CalculateSize()
+            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            v.WriteTo(output)
+        | None -> ()
+
+        match value.Description with
+        | Some v ->
+            let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
+            wrapper.Value <- v
+            let subSize = wrapper.CalculateSize()
+            output.WriteTag(4, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            wrapper.WriteTo(output)
+        | None -> ()
+
+        match value.Priority with
+        | Some v ->
+            let wrapper = Google.Protobuf.WellKnownTypes.Int32Value()
+            wrapper.Value <- v
+            let subSize = wrapper.CalculateSize()
+            output.WriteTag(5, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            wrapper.WriteTo(output)
+        | None -> ()
+
+        match value.Active with
+        | Some v ->
+            let wrapper = Google.Protobuf.WellKnownTypes.BoolValue()
+            wrapper.Value <- v
+            let subSize = wrapper.CalculateSize()
+            output.WriteTag(6, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            wrapper.WriteTo(output)
+        | None -> ()
+
+        match value.Payload with
+        | Some v ->
+            let subSize = v.CalculateSize()
+            output.WriteTag(7, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            v.WriteTo(output)
+        | None -> ()
+
+    let encode (value: Event) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Event =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Id = ""
+        let mutable _CreatedAt = None
+        let mutable _Ttl = None
+        let mutable _Description = None
+        let mutable _Priority = None
+        let mutable _Active = None
+        let mutable _Payload = None
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Id <- input.ReadString()
+            | 2 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                let msg = Google.Protobuf.WellKnownTypes.Timestamp()
+                msg.MergeFrom(subBytes)
+                _CreatedAt <- Some(msg)
+            | 3 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                let msg = Google.Protobuf.WellKnownTypes.Duration()
+                msg.MergeFrom(subBytes)
+                _Ttl <- Some(msg)
+            | 4 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
+                wrapper.MergeFrom(subBytes)
+                _Description <- Some(wrapper.Value)
+            | 5 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                let wrapper = Google.Protobuf.WellKnownTypes.Int32Value()
+                wrapper.MergeFrom(subBytes)
+                _Priority <- Some(wrapper.Value)
+            | 6 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                let wrapper = Google.Protobuf.WellKnownTypes.BoolValue()
+                wrapper.MergeFrom(subBytes)
+                _Active <- Some(wrapper.Value)
+            | 7 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                let msg = Google.Protobuf.WellKnownTypes.Any()
+                msg.MergeFrom(subBytes)
+                _Payload <- Some(msg)
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Id = _Id
+          CreatedAt = _CreatedAt
+          Ttl = _Ttl
+          Description = _Description
+          Priority = _Priority
+          Active = _Active
+          Payload = _Payload }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Event) : unit =
+        writer.WriteStartObject()
+
+        if value.Id <> "" then
+            writer.WriteString("id", value.Id)
+
+        match value.CreatedAt with
+        | Some v ->
+            writer.WritePropertyName("createdAt")
+            writer.WriteRawValue(Google.Protobuf.JsonFormatter.Default.Format(v))
+        | None -> ()
+
+        match value.Ttl with
+        | Some v ->
+            writer.WritePropertyName("ttl")
+            writer.WriteRawValue(Google.Protobuf.JsonFormatter.Default.Format(v))
+        | None -> ()
+
+        match value.Description with
+        | Some v -> writer.WriteString("description", v)
+        | None -> ()
+
+        match value.Priority with
+        | Some v -> writer.WriteNumber("priority", v)
+        | None -> ()
+
+        match value.Active with
+        | Some v -> writer.WriteBoolean("active", v)
+        | None -> ()
+
+        match value.Payload with
+        | Some v ->
+            writer.WritePropertyName("payload")
+            writer.WriteRawValue(Google.Protobuf.JsonFormatter.Default.Format(v))
+        | None -> ()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Event) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Event =
+        let mutable _Id = ""
+        let mutable _CreatedAt = None
+        let mutable _Ttl = None
+        let mutable _Description = None
+        let mutable _Priority = None
+        let mutable _Active = None
+        let mutable _Payload = None
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "id" -> _Id <- prop.Value.GetString()
+            | "createdAt" ->
+                _CreatedAt <-
+                    Some(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(prop.Value.GetRawText()))
+            | "created_at" ->
+                _CreatedAt <-
+                    Some(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(prop.Value.GetRawText()))
+            | "ttl" ->
+                _Ttl <-
+                    Some(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Duration>(prop.Value.GetRawText()))
+            | "description" -> _Description <- Some(prop.Value.GetString())
+            | "priority" -> _Priority <- Some(prop.Value.GetInt32())
+            | "active" -> _Active <- Some(prop.Value.GetBoolean())
+            | "payload" ->
+                _Payload <-
+                    Some(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Any>(prop.Value.GetRawText()))
+            | _ -> ()
+
+        { Id = _Id
+          CreatedAt = _CreatedAt
+          Ttl = _Ttl
+          Description = _Description
+          Priority = _Priority
+          Active = _Active
+          Payload = _Payload }
+
+    let decodeJson (json: string) : Event =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

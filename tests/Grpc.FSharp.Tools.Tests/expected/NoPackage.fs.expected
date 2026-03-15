@@ -1,0 +1,72 @@
+type Simple = { Name: string }
+
+module Simple =
+    let empty = { Name = "" }
+
+    let computeSize (value: Simple) : int =
+        let mutable size = 0
+
+        if value.Name <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Simple) : unit =
+        if value.Name <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Name)
+
+    let encode (value: Simple) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Simple =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Name = ""
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Name <- input.ReadString()
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Name = _Name }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Simple) : unit =
+        writer.WriteStartObject()
+
+        if value.Name <> "" then
+            writer.WriteString("name", value.Name)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Simple) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Simple =
+        let mutable _Name = ""
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "name" -> _Name <- prop.Value.GetString()
+            | _ -> ()
+
+        { Name = _Name }
+
+    let decodeJson (json: string) : Simple =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

@@ -1,0 +1,28 @@
+syntax = "proto3";
+package crosslang;
+
+option csharp_namespace = "CrossLangCSharp";
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloReply {
+  string message = 1;
+}
+
+message StreamItem {
+  int32 value = 1;
+}
+
+message Summary {
+  int32 count = 1;
+  int32 total = 2;
+}
+
+service CrossLangService {
+  rpc SayHello (HelloRequest) returns (HelloReply);
+  rpc ServerStream (HelloRequest) returns (stream StreamItem);
+  rpc ClientStream (stream StreamItem) returns (Summary);
+  rpc BidiStream (stream StreamItem) returns (stream StreamItem);
+}

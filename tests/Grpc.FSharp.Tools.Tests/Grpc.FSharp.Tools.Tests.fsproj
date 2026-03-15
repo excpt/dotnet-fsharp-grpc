@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <IsPackable>false</IsPackable>
+        <GenerateProgramFile>false</GenerateProgramFile>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="FabulousAstTests.fs"/>
+        <Compile Include="ProtoToAstTests.fs"/>
+        <Compile Include="ServiceGenTests.fs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+        <PackageReference Include="xunit.v3"/>
+        <PackageReference Include="xunit.runner.visualstudio"/>
+        <PackageReference Include="FsUnit.xUnit"/>
+        <PackageReference Include="coverlet.collector"/>
+        <PackageReference Include="Fabulous.AST"/>
+        <PackageReference Include="Grpc.Tools" PrivateAssets="all" ExcludeAssets="build" GeneratePathProperty="true"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../src/Grpc.FSharp.Tools/Grpc.FSharp.Tools.fsproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="expected/**/*.expected" CopyToOutputDirectory="PreserveNewest" />
+        <Content Include="protos/**/*.proto" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+</Project>

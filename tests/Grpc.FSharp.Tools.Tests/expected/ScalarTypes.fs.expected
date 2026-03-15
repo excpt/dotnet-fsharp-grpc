@@ -1,0 +1,371 @@
+namespace Scalars
+
+type ScalarTypes =
+    { DoubleField: float
+      FloatField: float32
+      Int32Field: int
+      Int64Field: int64
+      Uint32Field: uint32
+      Uint64Field: uint64
+      Sint32Field: int
+      Sint64Field: int64
+      Fixed32Field: uint32
+      Fixed64Field: uint64
+      Sfixed32Field: int
+      Sfixed64Field: int64
+      BoolField: bool
+      StringField: string
+      BytesField: byte array }
+
+module ScalarTypes =
+    let empty =
+        { DoubleField = 0.0
+          FloatField = 0.0f
+          Int32Field = 0
+          Int64Field = 0L
+          Uint32Field = 0u
+          Uint64Field = 0UL
+          Sint32Field = 0
+          Sint64Field = 0L
+          Fixed32Field = 0u
+          Fixed64Field = 0UL
+          Sfixed32Field = 0
+          Sfixed64Field = 0L
+          BoolField = false
+          StringField = ""
+          BytesField = Array.empty }
+
+    let computeSize (value: ScalarTypes) : int =
+        let mutable size = 0
+
+        if value.DoubleField <> 0.0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + 8
+
+        if value.FloatField <> 0.0f then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + 4
+
+        if value.Int32Field <> 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.Int32Field)
+
+        if value.Int64Field <> 0L then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeInt64Size(value.Int64Field)
+
+        if value.Uint32Field <> 0u then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeUInt32Size(value.Uint32Field)
+
+        if value.Uint64Field <> 0UL then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(6) + Google.Protobuf.CodedOutputStream.ComputeUInt64Size(value.Uint64Field)
+
+        if value.Sint32Field <> 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeSInt32Size(value.Sint32Field)
+
+        if value.Sint64Field <> 0L then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(8) + Google.Protobuf.CodedOutputStream.ComputeSInt64Size(value.Sint64Field)
+
+        if value.Fixed32Field <> 0u then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(9) + 4
+
+        if value.Fixed64Field <> 0UL then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(10) + 8
+
+        if value.Sfixed32Field <> 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(11) + 4
+
+        if value.Sfixed64Field <> 0L then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(12) + 8
+
+        if value.BoolField then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(13) + 1
+
+        if value.StringField <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(14) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.StringField)
+
+        if value.BytesField.Length > 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(15) + Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom(value.BytesField))
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: ScalarTypes) : unit =
+        if value.DoubleField <> 0.0 then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.Fixed64)
+            output.WriteDouble(value.DoubleField)
+
+        if value.FloatField <> 0.0f then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Fixed32)
+            output.WriteFloat(value.FloatField)
+
+        if value.Int32Field <> 0 then
+            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(value.Int32Field)
+
+        if value.Int64Field <> 0L then
+            output.WriteTag(4, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt64(value.Int64Field)
+
+        if value.Uint32Field <> 0u then
+            output.WriteTag(5, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteUInt32(value.Uint32Field)
+
+        if value.Uint64Field <> 0UL then
+            output.WriteTag(6, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteUInt64(value.Uint64Field)
+
+        if value.Sint32Field <> 0 then
+            output.WriteTag(7, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteSInt32(value.Sint32Field)
+
+        if value.Sint64Field <> 0L then
+            output.WriteTag(8, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteSInt64(value.Sint64Field)
+
+        if value.Fixed32Field <> 0u then
+            output.WriteTag(9, Google.Protobuf.WireFormat.WireType.Fixed32)
+            output.WriteFixed32(value.Fixed32Field)
+
+        if value.Fixed64Field <> 0UL then
+            output.WriteTag(10, Google.Protobuf.WireFormat.WireType.Fixed64)
+            output.WriteFixed64(value.Fixed64Field)
+
+        if value.Sfixed32Field <> 0 then
+            output.WriteTag(11, Google.Protobuf.WireFormat.WireType.Fixed32)
+            output.WriteSFixed32(value.Sfixed32Field)
+
+        if value.Sfixed64Field <> 0L then
+            output.WriteTag(12, Google.Protobuf.WireFormat.WireType.Fixed64)
+            output.WriteSFixed64(value.Sfixed64Field)
+
+        if value.BoolField then
+            output.WriteTag(13, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteBool(value.BoolField)
+
+        if value.StringField <> "" then
+            output.WriteTag(14, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.StringField)
+
+        if value.BytesField.Length > 0 then
+            output.WriteTag(15, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteBytes(Google.Protobuf.ByteString.CopyFrom(value.BytesField))
+
+    let encode (value: ScalarTypes) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : ScalarTypes =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _DoubleField = 0.0
+        let mutable _FloatField = 0.0f
+        let mutable _Int32Field = 0
+        let mutable _Int64Field = 0L
+        let mutable _Uint32Field = 0u
+        let mutable _Uint64Field = 0UL
+        let mutable _Sint32Field = 0
+        let mutable _Sint64Field = 0L
+        let mutable _Fixed32Field = 0u
+        let mutable _Fixed64Field = 0UL
+        let mutable _Sfixed32Field = 0
+        let mutable _Sfixed64Field = 0L
+        let mutable _BoolField = false
+        let mutable _StringField = ""
+        let mutable _BytesField = Array.empty
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _DoubleField <- input.ReadDouble()
+            | 2 -> _FloatField <- input.ReadFloat()
+            | 3 -> _Int32Field <- input.ReadInt32()
+            | 4 -> _Int64Field <- input.ReadInt64()
+            | 5 -> _Uint32Field <- input.ReadUInt32()
+            | 6 -> _Uint64Field <- input.ReadUInt64()
+            | 7 -> _Sint32Field <- input.ReadSInt32()
+            | 8 -> _Sint64Field <- input.ReadSInt64()
+            | 9 -> _Fixed32Field <- input.ReadFixed32()
+            | 10 -> _Fixed64Field <- input.ReadFixed64()
+            | 11 -> _Sfixed32Field <- input.ReadSFixed32()
+            | 12 -> _Sfixed64Field <- input.ReadSFixed64()
+            | 13 -> _BoolField <- input.ReadBool()
+            | 14 -> _StringField <- input.ReadString()
+            | 15 -> _BytesField <- input.ReadBytes().ToByteArray()
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { DoubleField = _DoubleField
+          FloatField = _FloatField
+          Int32Field = _Int32Field
+          Int64Field = _Int64Field
+          Uint32Field = _Uint32Field
+          Uint64Field = _Uint64Field
+          Sint32Field = _Sint32Field
+          Sint64Field = _Sint64Field
+          Fixed32Field = _Fixed32Field
+          Fixed64Field = _Fixed64Field
+          Sfixed32Field = _Sfixed32Field
+          Sfixed64Field = _Sfixed64Field
+          BoolField = _BoolField
+          StringField = _StringField
+          BytesField = _BytesField }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: ScalarTypes) : unit =
+        writer.WriteStartObject()
+
+        if value.DoubleField <> 0.0 then
+            if System.Double.IsNaN(value.DoubleField) then writer.WriteString("doubleField", "NaN") elif System.Double.IsPositiveInfinity(value.DoubleField) then writer.WriteString("doubleField", "Infinity") elif System.Double.IsNegativeInfinity(value.DoubleField) then writer.WriteString("doubleField", "-Infinity") else writer.WriteNumber("doubleField", value.DoubleField)
+
+        if value.FloatField <> 0.0f then
+            if System.Single.IsNaN(value.FloatField) then writer.WriteString("floatField", "NaN") elif System.Single.IsPositiveInfinity(value.FloatField) then writer.WriteString("floatField", "Infinity") elif System.Single.IsNegativeInfinity(value.FloatField) then writer.WriteString("floatField", "-Infinity") else writer.WriteNumber("floatField", float value.FloatField)
+
+        if value.Int32Field <> 0 then
+            writer.WriteNumber("int32Field", value.Int32Field)
+
+        if value.Int64Field <> 0L then
+            writer.WriteString("int64Field", string value.Int64Field)
+
+        if value.Uint32Field <> 0u then
+            writer.WriteNumber("uint32Field", value.Uint32Field)
+
+        if value.Uint64Field <> 0UL then
+            writer.WriteString("uint64Field", string value.Uint64Field)
+
+        if value.Sint32Field <> 0 then
+            writer.WriteNumber("sint32Field", value.Sint32Field)
+
+        if value.Sint64Field <> 0L then
+            writer.WriteString("sint64Field", string value.Sint64Field)
+
+        if value.Fixed32Field <> 0u then
+            writer.WriteNumber("fixed32Field", value.Fixed32Field)
+
+        if value.Fixed64Field <> 0UL then
+            writer.WriteString("fixed64Field", string value.Fixed64Field)
+
+        if value.Sfixed32Field <> 0 then
+            writer.WriteNumber("sfixed32Field", value.Sfixed32Field)
+
+        if value.Sfixed64Field <> 0L then
+            writer.WriteString("sfixed64Field", string value.Sfixed64Field)
+
+        if value.BoolField then
+            writer.WriteBoolean("boolField", value.BoolField)
+
+        if value.StringField <> "" then
+            writer.WriteString("stringField", value.StringField)
+
+        if value.BytesField.Length > 0 then
+            writer.WriteString("bytesField", System.Convert.ToBase64String(value.BytesField))
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: ScalarTypes) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : ScalarTypes =
+        let mutable _DoubleField = 0.0
+        let mutable _FloatField = 0.0f
+        let mutable _Int32Field = 0
+        let mutable _Int64Field = 0L
+        let mutable _Uint32Field = 0u
+        let mutable _Uint64Field = 0UL
+        let mutable _Sint32Field = 0
+        let mutable _Sint64Field = 0L
+        let mutable _Fixed32Field = 0u
+        let mutable _Fixed64Field = 0UL
+        let mutable _Sfixed32Field = 0
+        let mutable _Sfixed64Field = 0L
+        let mutable _BoolField = false
+        let mutable _StringField = ""
+        let mutable _BytesField = Array.empty
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "doubleField" ->
+                _DoubleField <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then (match prop.Value.GetString() with | "NaN" -> System.Double.NaN | "Infinity" -> System.Double.PositiveInfinity | "-Infinity" -> System.Double.NegativeInfinity | s -> float s) else prop.Value.GetDouble()
+            | "double_field" ->
+                _DoubleField <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then (match prop.Value.GetString() with | "NaN" -> System.Double.NaN | "Infinity" -> System.Double.PositiveInfinity | "-Infinity" -> System.Double.NegativeInfinity | s -> float s) else prop.Value.GetDouble()
+            | "floatField" ->
+                _FloatField <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then (match prop.Value.GetString() with | "NaN" -> System.Single.NaN | "Infinity" -> System.Single.PositiveInfinity | "-Infinity" -> System.Single.NegativeInfinity | s -> float32 s) else float32 (prop.Value.GetDouble())
+            | "float_field" ->
+                _FloatField <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then (match prop.Value.GetString() with | "NaN" -> System.Single.NaN | "Infinity" -> System.Single.PositiveInfinity | "-Infinity" -> System.Single.NegativeInfinity | s -> float32 s) else float32 (prop.Value.GetDouble())
+            | "int32Field" -> _Int32Field <- prop.Value.GetInt32()
+            | "int32_field" -> _Int32Field <- prop.Value.GetInt32()
+            | "int64Field" ->
+                _Int64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()
+            | "int64_field" ->
+                _Int64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()
+            | "uint32Field" -> _Uint32Field <- prop.Value.GetUInt32()
+            | "uint32_field" -> _Uint32Field <- prop.Value.GetUInt32()
+            | "uint64Field" ->
+                _Uint64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()
+            | "uint64_field" ->
+                _Uint64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()
+            | "sint32Field" -> _Sint32Field <- prop.Value.GetInt32()
+            | "sint32_field" -> _Sint32Field <- prop.Value.GetInt32()
+            | "sint64Field" ->
+                _Sint64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()
+            | "sint64_field" ->
+                _Sint64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()
+            | "fixed32Field" -> _Fixed32Field <- prop.Value.GetUInt32()
+            | "fixed32_field" -> _Fixed32Field <- prop.Value.GetUInt32()
+            | "fixed64Field" ->
+                _Fixed64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()
+            | "fixed64_field" ->
+                _Fixed64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()
+            | "sfixed32Field" -> _Sfixed32Field <- prop.Value.GetInt32()
+            | "sfixed32_field" -> _Sfixed32Field <- prop.Value.GetInt32()
+            | "sfixed64Field" ->
+                _Sfixed64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()
+            | "sfixed64_field" ->
+                _Sfixed64Field <-
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()
+            | "boolField" -> _BoolField <- prop.Value.GetBoolean()
+            | "bool_field" -> _BoolField <- prop.Value.GetBoolean()
+            | "stringField" -> _StringField <- prop.Value.GetString()
+            | "string_field" -> _StringField <- prop.Value.GetString()
+            | "bytesField" -> _BytesField <- System.Convert.FromBase64String(prop.Value.GetString())
+            | "bytes_field" -> _BytesField <- System.Convert.FromBase64String(prop.Value.GetString())
+            | _ -> ()
+
+        { DoubleField = _DoubleField
+          FloatField = _FloatField
+          Int32Field = _Int32Field
+          Int64Field = _Int64Field
+          Uint32Field = _Uint32Field
+          Uint64Field = _Uint64Field
+          Sint32Field = _Sint32Field
+          Sint64Field = _Sint64Field
+          Fixed32Field = _Fixed32Field
+          Fixed64Field = _Fixed64Field
+          Sfixed32Field = _Sfixed32Field
+          Sfixed64Field = _Sfixed64Field
+          BoolField = _BoolField
+          StringField = _StringField
+          BytesField = _BytesField }
+
+    let decodeJson (json: string) : ScalarTypes =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

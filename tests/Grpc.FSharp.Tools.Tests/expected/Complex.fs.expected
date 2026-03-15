@@ -1,0 +1,894 @@
+namespace Acme.Platform.V1
+
+type UserStatus =
+    | UserStatusUnknown = 0
+    | UserStatusActive = 1
+    | UserStatusSuspended = 2
+
+module UserStatus =
+    let toJsonName (value: UserStatus) : string =
+        match value with
+        | UserStatus.UserStatusUnknown -> "USER_STATUS_UNKNOWN"
+        | UserStatus.UserStatusActive -> "USER_STATUS_ACTIVE"
+        | UserStatus.UserStatusSuspended -> "USER_STATUS_SUSPENDED"
+        | _ -> string (int value)
+
+    let fromJsonName (name: string) : UserStatus =
+        match name with
+        | "USER_STATUS_UNKNOWN" -> UserStatus.UserStatusUnknown
+        | "USER_STATUS_ACTIVE" -> UserStatus.UserStatusActive
+        | "USER_STATUS_SUSPENDED" -> UserStatus.UserStatusSuspended
+        | _ ->
+            match System.Int32.TryParse(name) with | true, v -> LanguagePrimitives.EnumOfValue v | _ -> LanguagePrimitives.EnumOfValue 0
+
+type Address =
+    { Street: string
+      City: string
+      CountryCode: string
+      ZipCode: string option }
+
+module Address =
+    let empty =
+        { Street = ""
+          City = ""
+          CountryCode = ""
+          ZipCode = None }
+
+    let computeSize (value: Address) : int =
+        let mutable size = 0
+
+        if value.Street <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Street)
+
+        if value.City <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.City)
+
+        if value.CountryCode <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.CountryCode)
+
+        match value.ZipCode with
+        | Some v ->
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+        | None -> ()
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Address) : unit =
+        if value.Street <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Street)
+
+        if value.City <> "" then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.City)
+
+        if value.CountryCode <> "" then
+            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.CountryCode)
+
+        match value.ZipCode with
+        | Some v ->
+            output.WriteTag(4, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(v)
+        | None -> ()
+
+    let encode (value: Address) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Address =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Street = ""
+        let mutable _City = ""
+        let mutable _CountryCode = ""
+        let mutable _ZipCode = None
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Street <- input.ReadString()
+            | 2 -> _City <- input.ReadString()
+            | 3 -> _CountryCode <- input.ReadString()
+            | 4 -> _ZipCode <- Some(input.ReadString())
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Street = _Street
+          City = _City
+          CountryCode = _CountryCode
+          ZipCode = _ZipCode }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
+        writer.WriteStartObject()
+
+        if value.Street <> "" then
+            writer.WriteString("street", value.Street)
+
+        if value.City <> "" then
+            writer.WriteString("city", value.City)
+
+        if value.CountryCode <> "" then
+            writer.WriteString("countryCode", value.CountryCode)
+
+        match value.ZipCode with
+        | Some v -> writer.WriteString("zipCode", v)
+        | None -> ()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Address) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Address =
+        let mutable _Street = ""
+        let mutable _City = ""
+        let mutable _CountryCode = ""
+        let mutable _ZipCode = None
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "street" -> _Street <- prop.Value.GetString()
+            | "city" -> _City <- prop.Value.GetString()
+            | "countryCode" -> _CountryCode <- prop.Value.GetString()
+            | "country_code" -> _CountryCode <- prop.Value.GetString()
+            | "zipCode" -> _ZipCode <- Some(prop.Value.GetString())
+            | "zip_code" -> _ZipCode <- Some(prop.Value.GetString())
+            | _ -> ()
+
+        { Street = _Street
+          City = _City
+          CountryCode = _CountryCode
+          ZipCode = _ZipCode }
+
+    let decodeJson (json: string) : Address =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement
+
+type Priority =
+    | PriorityUnspecified = 0
+    | PriorityLow = 1
+    | PriorityHigh = 2
+
+module Priority =
+    let toJsonName (value: Priority) : string =
+        match value with
+        | Priority.PriorityUnspecified -> "PRIORITY_UNSPECIFIED"
+        | Priority.PriorityLow -> "PRIORITY_LOW"
+        | Priority.PriorityHigh -> "PRIORITY_HIGH"
+        | _ -> string (int value)
+
+    let fromJsonName (name: string) : Priority =
+        match name with
+        | "PRIORITY_UNSPECIFIED" -> Priority.PriorityUnspecified
+        | "PRIORITY_LOW" -> Priority.PriorityLow
+        | "PRIORITY_HIGH" -> Priority.PriorityHigh
+        | _ ->
+            match System.Int32.TryParse(name) with | true, v -> LanguagePrimitives.EnumOfValue v | _ -> LanguagePrimitives.EnumOfValue 0
+
+type Department =
+    { Name: string
+      Members: User list
+      Priority: Priority }
+
+module Department =
+    let empty =
+        { Name = ""
+          Members = []
+          Priority = LanguagePrimitives.EnumOfValue 0 }
+
+    let computeSize (value: Department) : int =
+        let mutable size = 0
+
+        if value.Name <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+
+        for item in value.Members do
+            let subSize = User.computeSize item
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+        if int value.Priority <> 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Priority)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Department) : unit =
+        if value.Name <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Name)
+
+        for item in value.Members do
+            let subSize = User.computeSize item
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            User.writeTo output item
+
+        if int value.Priority <> 0 then
+            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(int value.Priority)
+
+    let encode (value: Department) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Department =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Name = ""
+        let _Members = ResizeArray<User>()
+        let mutable _Priority = LanguagePrimitives.EnumOfValue 0
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Name <- input.ReadString()
+            | 2 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _Members.Add(User.decode subBytes)
+            | 3 -> _Priority <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Name = _Name
+          Members = Seq.toList _Members
+          Priority = _Priority }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Department) : unit =
+        writer.WriteStartObject()
+
+        if value.Name <> "" then
+            writer.WriteString("name", value.Name)
+
+        if not (List.isEmpty value.Members) then
+            writer.WriteStartArray("members")
+
+            for item in value.Members do
+                User.writeJsonTo writer item
+
+            writer.WriteEndArray()
+
+        if int value.Priority <> 0 then
+            writer.WriteString("priority", Priority.toJsonName value.Priority)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Department) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Department =
+        let mutable _Name = ""
+        let _Members = ResizeArray<User>()
+        let mutable _Priority = LanguagePrimitives.EnumOfValue 0
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "name" -> _Name <- prop.Value.GetString()
+            | "members" ->
+                for item in prop.Value.EnumerateArray() do
+                    _Members.Add(User.decodeJsonElement item)
+            | "priority" ->
+                _Priority <-
+                    Priority.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())
+            | _ -> ()
+
+        { Name = _Name
+          Members = Seq.toList _Members
+          Priority = _Priority }
+
+    let decodeJson (json: string) : Department =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement
+
+type Organization =
+    { Name: string
+      BillingAddress: Address option
+      DomainNames: string list
+      Metadata: Map<string, string>
+      Departments: Department list }
+
+module Organization =
+    let empty =
+        { Name = ""
+          BillingAddress = None
+          DomainNames = []
+          Metadata = Map.empty
+          Departments = [] }
+
+    let computeSize (value: Organization) : int =
+        let mutable size = 0
+
+        if value.Name <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+
+        match value.BillingAddress with
+        | Some v ->
+            let subSize = Address.computeSize v
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        for item in value.DomainNames do
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item)
+
+        for kvp in value.Metadata do
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
+
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize
+
+        for item in value.Departments do
+            let subSize = Department.computeSize item
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Organization) : unit =
+        if value.Name <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Name)
+
+        match value.BillingAddress with
+        | Some v ->
+            let subSize = Address.computeSize v
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Address.writeTo output v
+        | None -> ()
+
+        for item in value.DomainNames do
+            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(item)
+
+        for kvp in value.Metadata do
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
+
+            output.WriteTag(4, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(entrySize)
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(kvp.Key)
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(kvp.Value)
+
+        for item in value.Departments do
+            let subSize = Department.computeSize item
+            output.WriteTag(5, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Department.writeTo output item
+
+    let encode (value: Organization) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Organization =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Name = ""
+        let mutable _BillingAddress = None
+        let _DomainNames = ResizeArray<string>()
+        let _Metadata = System.Collections.Generic.Dictionary<string, string>()
+        let _Departments = ResizeArray<Department>()
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Name <- input.ReadString()
+            | 2 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _BillingAddress <- Some(Address.decode subBytes)
+            | 3 -> _DomainNames.Add(input.ReadString())
+            | 4 ->
+                let entryData = input.ReadBytes().ToByteArray()
+                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                let mutable key = ""
+                let mutable mapValue = ""
+                let mutable entryTag = entryInput.ReadTag()
+
+                while entryTag <> 0u do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
+                    | 1 -> key <- entryInput.ReadString()
+                    | 2 -> mapValue <- entryInput.ReadString()
+                    | _ -> entryInput.SkipLastField()
+
+                    entryTag <- entryInput.ReadTag()
+
+                _Metadata.[key] <- mapValue
+            | 5 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _Departments.Add(Department.decode subBytes)
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Name = _Name
+          BillingAddress = _BillingAddress
+          DomainNames = Seq.toList _DomainNames
+          Metadata = _Metadata |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          Departments = Seq.toList _Departments }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Organization) : unit =
+        writer.WriteStartObject()
+
+        if value.Name <> "" then
+            writer.WriteString("name", value.Name)
+
+        match value.BillingAddress with
+        | Some v ->
+            writer.WritePropertyName("billingAddress")
+            Address.writeJsonTo writer v
+        | None -> ()
+
+        if not (List.isEmpty value.DomainNames) then
+            writer.WriteStartArray("domainNames")
+
+            for item in value.DomainNames do
+                writer.WriteStringValue(item)
+
+            writer.WriteEndArray()
+
+        if not (Map.isEmpty value.Metadata) then
+            writer.WriteStartObject("metadata")
+
+            for kvp in value.Metadata do
+                writer.WritePropertyName(string kvp.Key)
+                writer.WriteStringValue(kvp.Value)
+
+            writer.WriteEndObject()
+
+        if not (List.isEmpty value.Departments) then
+            writer.WriteStartArray("departments")
+
+            for item in value.Departments do
+                Department.writeJsonTo writer item
+
+            writer.WriteEndArray()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Organization) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Organization =
+        let mutable _Name = ""
+        let mutable _BillingAddress = None
+        let _DomainNames = ResizeArray<string>()
+        let _Metadata = System.Collections.Generic.Dictionary<string, string>()
+        let _Departments = ResizeArray<Department>()
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "name" -> _Name <- prop.Value.GetString()
+            | "billingAddress" -> _BillingAddress <- Some(Address.decodeJsonElement prop.Value)
+            | "billing_address" -> _BillingAddress <- Some(Address.decodeJsonElement prop.Value)
+            | "domainNames" ->
+                for item in prop.Value.EnumerateArray() do
+                    _DomainNames.Add(item.GetString())
+            | "domain_names" ->
+                for item in prop.Value.EnumerateArray() do
+                    _DomainNames.Add(item.GetString())
+            | "metadata" ->
+                for entry in prop.Value.EnumerateObject() do
+                    _Metadata.[entry.Name] <- entry.Value.GetString()
+            | "departments" ->
+                for item in prop.Value.EnumerateArray() do
+                    _Departments.Add(Department.decodeJsonElement item)
+            | _ -> ()
+
+        { Name = _Name
+          BillingAddress = _BillingAddress
+          DomainNames = Seq.toList _DomainNames
+          Metadata = _Metadata |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          Departments = Seq.toList _Departments }
+
+    let decodeJson (json: string) : Organization =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement
+
+type UserContact =
+    | PhoneNumber of phoneNumber: string
+    | SlackHandle of slackHandle: string
+
+type User =
+    { Id: string
+      DisplayName: string
+      Email: string
+      Status: UserStatus
+      HomeAddress: Address option
+      OtherAddresses: Address list
+      Scores: Map<string, int>
+      Rating: float option
+      Organization: Organization option
+      Contact: UserContact option
+      Manager: User option }
+
+module User =
+    let empty =
+        { Id = ""
+          DisplayName = ""
+          Email = ""
+          Status = LanguagePrimitives.EnumOfValue 0
+          HomeAddress = None
+          OtherAddresses = []
+          Scores = Map.empty
+          Rating = None
+          Organization = None
+          Contact = None
+          Manager = None }
+
+    let computeSize (value: User) : int =
+        let mutable size = 0
+
+        if value.Id <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+
+        if value.DisplayName <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.DisplayName)
+
+        if value.Email <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Email)
+
+        if int value.Status <> 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Status)
+
+        match value.HomeAddress with
+        | Some v ->
+            let subSize = Address.computeSize v
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        for item in value.OtherAddresses do
+            let subSize = Address.computeSize item
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(6) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+        for kvp in value.Scores do
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
+
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize
+
+        match value.Rating with
+        | Some v -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(8) + 8
+        | None -> ()
+
+        match value.Organization with
+        | Some v ->
+            let subSize = Organization.computeSize v
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(9) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        match value.Contact with
+        | Some oneofValue ->
+            match oneofValue with
+            | UserContact.PhoneNumber v ->
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(10) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+            | UserContact.SlackHandle v ->
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(11) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+        | None -> ()
+
+        match value.Manager with
+        | Some v ->
+            let subSize = User.computeSize v
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(12) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: User) : unit =
+        if value.Id <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Id)
+
+        if value.DisplayName <> "" then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.DisplayName)
+
+        if value.Email <> "" then
+            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Email)
+
+        if int value.Status <> 0 then
+            output.WriteTag(4, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(int value.Status)
+
+        match value.HomeAddress with
+        | Some v ->
+            let subSize = Address.computeSize v
+            output.WriteTag(5, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Address.writeTo output v
+        | None -> ()
+
+        for item in value.OtherAddresses do
+            let subSize = Address.computeSize item
+            output.WriteTag(6, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Address.writeTo output item
+
+        for kvp in value.Scores do
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
+
+            output.WriteTag(7, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(entrySize)
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(kvp.Key)
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(kvp.Value)
+
+        match value.Rating with
+        | Some v ->
+            output.WriteTag(8, Google.Protobuf.WireFormat.WireType.Fixed64)
+            output.WriteDouble(v)
+        | None -> ()
+
+        match value.Organization with
+        | Some v ->
+            let subSize = Organization.computeSize v
+            output.WriteTag(9, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Organization.writeTo output v
+        | None -> ()
+
+        match value.Contact with
+        | Some oneofValue ->
+            match oneofValue with
+            | UserContact.PhoneNumber v ->
+                output.WriteTag(10, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                output.WriteString(v)
+            | UserContact.SlackHandle v ->
+                output.WriteTag(11, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                output.WriteString(v)
+        | None -> ()
+
+        match value.Manager with
+        | Some v ->
+            let subSize = User.computeSize v
+            output.WriteTag(12, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            User.writeTo output v
+        | None -> ()
+
+    let encode (value: User) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : User =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Id = ""
+        let mutable _DisplayName = ""
+        let mutable _Email = ""
+        let mutable _Status = LanguagePrimitives.EnumOfValue 0
+        let mutable _HomeAddress = None
+        let _OtherAddresses = ResizeArray<Address>()
+        let _Scores = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _Rating = None
+        let mutable _Organization = None
+        let mutable _Contact = None
+        let mutable _Manager = None
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Id <- input.ReadString()
+            | 2 -> _DisplayName <- input.ReadString()
+            | 3 -> _Email <- input.ReadString()
+            | 4 -> _Status <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
+            | 5 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _HomeAddress <- Some(Address.decode subBytes)
+            | 6 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _OtherAddresses.Add(Address.decode subBytes)
+            | 7 ->
+                let entryData = input.ReadBytes().ToByteArray()
+                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                let mutable key = ""
+                let mutable mapValue = 0
+                let mutable entryTag = entryInput.ReadTag()
+
+                while entryTag <> 0u do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
+                    | 1 -> key <- entryInput.ReadString()
+                    | 2 -> mapValue <- entryInput.ReadInt32()
+                    | _ -> entryInput.SkipLastField()
+
+                    entryTag <- entryInput.ReadTag()
+
+                _Scores.[key] <- mapValue
+            | 8 -> _Rating <- Some(input.ReadDouble())
+            | 9 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _Organization <- Some(Organization.decode subBytes)
+            | 10 -> _Contact <- Some(UserContact.PhoneNumber(input.ReadString()))
+            | 11 -> _Contact <- Some(UserContact.SlackHandle(input.ReadString()))
+            | 12 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _Manager <- Some(User.decode subBytes)
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Id = _Id
+          DisplayName = _DisplayName
+          Email = _Email
+          Status = _Status
+          HomeAddress = _HomeAddress
+          OtherAddresses = Seq.toList _OtherAddresses
+          Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          Rating = _Rating
+          Organization = _Organization
+          Contact = _Contact
+          Manager = _Manager }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: User) : unit =
+        writer.WriteStartObject()
+
+        if value.Id <> "" then
+            writer.WriteString("id", value.Id)
+
+        if value.DisplayName <> "" then
+            writer.WriteString("displayName", value.DisplayName)
+
+        if value.Email <> "" then
+            writer.WriteString("email", value.Email)
+
+        if int value.Status <> 0 then
+            writer.WriteString("status", UserStatus.toJsonName value.Status)
+
+        match value.HomeAddress with
+        | Some v ->
+            writer.WritePropertyName("homeAddress")
+            Address.writeJsonTo writer v
+        | None -> ()
+
+        if not (List.isEmpty value.OtherAddresses) then
+            writer.WriteStartArray("otherAddresses")
+
+            for item in value.OtherAddresses do
+                Address.writeJsonTo writer item
+
+            writer.WriteEndArray()
+
+        if not (Map.isEmpty value.Scores) then
+            writer.WriteStartObject("scores")
+
+            for kvp in value.Scores do
+                writer.WritePropertyName(string kvp.Key)
+                writer.WriteNumberValue(kvp.Value)
+
+            writer.WriteEndObject()
+
+        match value.Rating with
+        | Some v ->
+            if System.Double.IsNaN(v) then writer.WriteString("rating", "NaN") elif System.Double.IsPositiveInfinity(v) then writer.WriteString("rating", "Infinity") elif System.Double.IsNegativeInfinity(v) then writer.WriteString("rating", "-Infinity") else writer.WriteNumber("rating", v)
+        | None -> ()
+
+        match value.Organization with
+        | Some v ->
+            writer.WritePropertyName("organization")
+            Organization.writeJsonTo writer v
+        | None -> ()
+
+        match value.Contact with
+        | Some oneofValue ->
+            match oneofValue with
+            | UserContact.PhoneNumber v -> writer.WriteString("phoneNumber", v)
+            | UserContact.SlackHandle v -> writer.WriteString("slackHandle", v)
+        | None -> ()
+
+        match value.Manager with
+        | Some v ->
+            writer.WritePropertyName("manager")
+            User.writeJsonTo writer v
+        | None -> ()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: User) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : User =
+        let mutable _Id = ""
+        let mutable _DisplayName = ""
+        let mutable _Email = ""
+        let mutable _Status = LanguagePrimitives.EnumOfValue 0
+        let mutable _HomeAddress = None
+        let _OtherAddresses = ResizeArray<Address>()
+        let _Scores = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _Rating = None
+        let mutable _Organization = None
+        let mutable _Contact = None
+        let mutable _Manager = None
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "id" -> _Id <- prop.Value.GetString()
+            | "displayName" -> _DisplayName <- prop.Value.GetString()
+            | "display_name" -> _DisplayName <- prop.Value.GetString()
+            | "email" -> _Email <- prop.Value.GetString()
+            | "status" ->
+                _Status <-
+                    UserStatus.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())
+            | "homeAddress" -> _HomeAddress <- Some(Address.decodeJsonElement prop.Value)
+            | "home_address" -> _HomeAddress <- Some(Address.decodeJsonElement prop.Value)
+            | "otherAddresses" ->
+                for item in prop.Value.EnumerateArray() do
+                    _OtherAddresses.Add(Address.decodeJsonElement item)
+            | "other_addresses" ->
+                for item in prop.Value.EnumerateArray() do
+                    _OtherAddresses.Add(Address.decodeJsonElement item)
+            | "scores" ->
+                for entry in prop.Value.EnumerateObject() do
+                    _Scores.[entry.Name] <- entry.Value.GetInt32()
+            | "rating" ->
+                _Rating <-
+                    Some(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then (match prop.Value.GetString() with | "NaN" -> System.Double.NaN | "Infinity" -> System.Double.PositiveInfinity | "-Infinity" -> System.Double.NegativeInfinity | s -> float s) else prop.Value.GetDouble())
+            | "organization" -> _Organization <- Some(Organization.decodeJsonElement prop.Value)
+            | "phoneNumber" -> _Contact <- Some(UserContact.PhoneNumber(prop.Value.GetString()))
+            | "phone_number" -> _Contact <- Some(UserContact.PhoneNumber(prop.Value.GetString()))
+            | "slackHandle" -> _Contact <- Some(UserContact.SlackHandle(prop.Value.GetString()))
+            | "slack_handle" -> _Contact <- Some(UserContact.SlackHandle(prop.Value.GetString()))
+            | "manager" -> _Manager <- Some(User.decodeJsonElement prop.Value)
+            | _ -> ()
+
+        { Id = _Id
+          DisplayName = _DisplayName
+          Email = _Email
+          Status = _Status
+          HomeAddress = _HomeAddress
+          OtherAddresses = Seq.toList _OtherAddresses
+          Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          Rating = _Rating
+          Organization = _Organization
+          Contact = _Contact
+          Manager = _Manager }
+
+    let decodeJson (json: string) : User =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

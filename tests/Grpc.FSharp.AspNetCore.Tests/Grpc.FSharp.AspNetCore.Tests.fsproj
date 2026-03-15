@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <IsPackable>false</IsPackable>
+        <GenerateProgramFile>false</GenerateProgramFile>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Greeter: messages before stubs -->
+        <Compile Include="Greeter.Messages.fs"/>
+        <Compile Include="Greeter.Server.fs"/>
+        <Compile Include="Greeter.Client.fs"/>
+        <!-- TestService: messages before stubs -->
+        <Compile Include="TestService.Messages.fs"/>
+        <Compile Include="TestService.Server.fs"/>
+        <Compile Include="TestService.Client.fs"/>
+        <!-- Tests last -->
+        <Compile Include="GrpcIntegrationTests.fs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+        <PackageReference Include="xunit.v3"/>
+        <PackageReference Include="xunit.runner.visualstudio"/>
+        <PackageReference Include="FsUnit.xUnit"/>
+        <PackageReference Include="coverlet.collector"/>
+        <PackageReference Include="Google.Protobuf"/>
+        <PackageReference Include="Grpc.Core.Api"/>
+        <PackageReference Include="Grpc.AspNetCore.Server"/>
+        <PackageReference Include="Grpc.Net.Client"/>
+        <PackageReference Include="Microsoft.AspNetCore.TestHost"/>
+    </ItemGroup>
+
+    <ItemGroup>
+    </ItemGroup>
+
+</Project>

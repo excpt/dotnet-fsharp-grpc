@@ -1,0 +1,115 @@
+namespace Example
+
+type PaymentMethod =
+    | CreditCard of creditCard: string
+    | BankAccount of bankAccount: string
+
+type Payment =
+    { Id: string
+      Method: PaymentMethod option }
+
+module Payment =
+    let empty = { Id = ""; Method = None }
+
+    let computeSize (value: Payment) : int =
+        let mutable size = 0
+
+        if value.Id <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+
+        match value.Method with
+        | Some oneofValue ->
+            match oneofValue with
+            | PaymentMethod.CreditCard v ->
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+            | PaymentMethod.BankAccount v ->
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+        | None -> ()
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Payment) : unit =
+        if value.Id <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Id)
+
+        match value.Method with
+        | Some oneofValue ->
+            match oneofValue with
+            | PaymentMethod.CreditCard v ->
+                output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                output.WriteString(v)
+            | PaymentMethod.BankAccount v ->
+                output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                output.WriteString(v)
+        | None -> ()
+
+    let encode (value: Payment) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Payment =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Id = ""
+        let mutable _Method = None
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Id <- input.ReadString()
+            | 2 -> _Method <- Some(PaymentMethod.CreditCard(input.ReadString()))
+            | 3 -> _Method <- Some(PaymentMethod.BankAccount(input.ReadString()))
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Id = _Id; Method = _Method }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Payment) : unit =
+        writer.WriteStartObject()
+
+        if value.Id <> "" then
+            writer.WriteString("id", value.Id)
+
+        match value.Method with
+        | Some oneofValue ->
+            match oneofValue with
+            | PaymentMethod.CreditCard v -> writer.WriteString("creditCard", v)
+            | PaymentMethod.BankAccount v -> writer.WriteString("bankAccount", v)
+        | None -> ()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Payment) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Payment =
+        let mutable _Id = ""
+        let mutable _Method = None
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "id" -> _Id <- prop.Value.GetString()
+            | "creditCard" -> _Method <- Some(PaymentMethod.CreditCard(prop.Value.GetString()))
+            | "credit_card" -> _Method <- Some(PaymentMethod.CreditCard(prop.Value.GetString()))
+            | "bankAccount" -> _Method <- Some(PaymentMethod.BankAccount(prop.Value.GetString()))
+            | "bank_account" -> _Method <- Some(PaymentMethod.BankAccount(prop.Value.GetString()))
+            | _ -> ()
+
+        { Id = _Id; Method = _Method }
+
+    let decodeJson (json: string) : Payment =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

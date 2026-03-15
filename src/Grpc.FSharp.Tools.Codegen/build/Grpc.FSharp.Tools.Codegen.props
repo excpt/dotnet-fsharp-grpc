@@ -1,0 +1,8 @@
+<Project>
+
+    <!-- Register Protobuf as a recognised item type in IDEs -->
+    <ItemGroup>
+        <AvailableItemName Include="Protobuf"/>
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,127 @@
+namespace Example
+
+type WithRepeated = { Tags: string list; Scores: int list }
+
+module WithRepeated =
+    let empty = { Tags = []; Scores = [] }
+
+    let computeSize (value: WithRepeated) : int =
+        let mutable size = 0
+
+        for item in value.Tags do
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item)
+
+        if not (List.isEmpty value.Scores) then
+            let mutable packedSize = 0
+
+            for item in value.Scores do
+                packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item)
+
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(packedSize) + packedSize
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: WithRepeated) : unit =
+        for item in value.Tags do
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(item)
+
+        if not (List.isEmpty value.Scores) then
+            let mutable packedSize = 0
+
+            for item in value.Scores do
+                packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item)
+
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(packedSize)
+
+            for item in value.Scores do
+                output.WriteInt32(item)
+
+    let encode (value: WithRepeated) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : WithRepeated =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let _Tags = ResizeArray<string>()
+        let _Scores = ResizeArray<int>()
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Tags.Add(input.ReadString())
+            | 2 ->
+                let wt = Google.Protobuf.WireFormat.GetTagWireType(tag)
+
+                if wt = Google.Protobuf.WireFormat.WireType.LengthDelimited then
+                    let packedData = input.ReadBytes().ToByteArray()
+                    use packedInput = new Google.Protobuf.CodedInputStream(packedData)
+
+                    while not packedInput.IsAtEnd do
+                        _Scores.Add(packedInput.ReadInt32())
+                else
+                    _Scores.Add(input.ReadInt32())
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Tags = Seq.toList _Tags
+          Scores = Seq.toList _Scores }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithRepeated) : unit =
+        writer.WriteStartObject()
+
+        if not (List.isEmpty value.Tags) then
+            writer.WriteStartArray("tags")
+
+            for item in value.Tags do
+                writer.WriteStringValue(item)
+
+            writer.WriteEndArray()
+
+        if not (List.isEmpty value.Scores) then
+            writer.WriteStartArray("scores")
+
+            for item in value.Scores do
+                writer.WriteNumberValue(item)
+
+            writer.WriteEndArray()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: WithRepeated) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : WithRepeated =
+        let _Tags = ResizeArray<string>()
+        let _Scores = ResizeArray<int>()
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "tags" ->
+                for item in prop.Value.EnumerateArray() do
+                    _Tags.Add(item.GetString())
+            | "scores" ->
+                for item in prop.Value.EnumerateArray() do
+                    _Scores.Add(item.GetInt32())
+            | _ -> ()
+
+        { Tags = Seq.toList _Tags
+          Scores = Seq.toList _Scores }
+
+    let decodeJson (json: string) : WithRepeated =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

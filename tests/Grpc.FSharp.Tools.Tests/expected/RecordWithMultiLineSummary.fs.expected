@@ -1,0 +1,5 @@
+/// <summary>
+/// Represents a user.
+/// Used in auth.
+/// </summary>
+type User = { Name: string }

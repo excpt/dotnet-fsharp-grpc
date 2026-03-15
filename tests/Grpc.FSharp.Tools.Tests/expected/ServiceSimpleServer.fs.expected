@@ -1,0 +1,19 @@
+namespace Greeter
+
+open Grpc.Core
+open System.Threading.Tasks
+
+type GreeterHandlers =
+    { SayHello: HelloRequest -> ServerCallContext -> Task<HelloReply> }
+
+[<BindServiceMethod(typeof<GreeterService>, "BindService")>]
+type GreeterService(handlers: GreeterHandlers) =
+    static member private sayHelloMethod =
+        Method<HelloRequest, HelloReply>(MethodType.Unary, "greeter.Greeter", "SayHello", Marshaller(System.Func<_, _>(HelloRequest.encode), System.Func<_, _>(HelloRequest.decode)), Marshaller(System.Func<_, _>(HelloReply.encode), System.Func<_, _>(HelloReply.decode)))
+
+    member _.Handlers = handlers
+    abstract SayHello: request: HelloRequest * context: ServerCallContext -> Task<HelloReply>
+    default _.SayHello(request: HelloRequest, context: ServerCallContext) = handlers.SayHello request context
+
+    static member BindService(binder: ServiceBinderBase, service: GreeterService) =
+        binder.AddMethod(GreeterService.sayHelloMethod, UnaryServerMethod<HelloRequest, HelloReply>(fun req ctx -> service.SayHello(req, ctx)))

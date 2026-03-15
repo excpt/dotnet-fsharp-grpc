@@ -1,0 +1,5 @@
+type Folder = { Name: string; Items: Item list }
+
+and Item =
+    { ItemName: string
+      SubFolder: Folder option }

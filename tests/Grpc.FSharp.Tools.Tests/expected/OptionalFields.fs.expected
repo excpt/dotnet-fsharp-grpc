@@ -1,0 +1,100 @@
+namespace Example
+
+type WithOptional =
+    { Nickname: string option
+      Age: int option }
+
+module WithOptional =
+    let empty = { Nickname = None; Age = None }
+
+    let computeSize (value: WithOptional) : int =
+        let mutable size = 0
+
+        match value.Nickname with
+        | Some v ->
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+        | None -> ()
+
+        match value.Age with
+        | Some v ->
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(v)
+        | None -> ()
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: WithOptional) : unit =
+        match value.Nickname with
+        | Some v ->
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(v)
+        | None -> ()
+
+        match value.Age with
+        | Some v ->
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(v)
+        | None -> ()
+
+    let encode (value: WithOptional) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : WithOptional =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Nickname = None
+        let mutable _Age = None
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Nickname <- Some(input.ReadString())
+            | 2 -> _Age <- Some(input.ReadInt32())
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Nickname = _Nickname; Age = _Age }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithOptional) : unit =
+        writer.WriteStartObject()
+
+        match value.Nickname with
+        | Some v -> writer.WriteString("nickname", v)
+        | None -> ()
+
+        match value.Age with
+        | Some v -> writer.WriteNumber("age", v)
+        | None -> ()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: WithOptional) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : WithOptional =
+        let mutable _Nickname = None
+        let mutable _Age = None
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "nickname" -> _Nickname <- Some(prop.Value.GetString())
+            | "age" -> _Age <- Some(prop.Value.GetInt32())
+            | _ -> ()
+
+        { Nickname = _Nickname; Age = _Age }
+
+    let decodeJson (json: string) : WithOptional =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

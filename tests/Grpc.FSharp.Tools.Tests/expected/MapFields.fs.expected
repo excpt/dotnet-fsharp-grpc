@@ -1,0 +1,160 @@
+namespace Example
+
+type WithMap =
+    { Labels: Map<string, string>
+      Scores: Map<string, int> }
+
+module WithMap =
+    let empty =
+        { Labels = Map.empty
+          Scores = Map.empty }
+
+    let computeSize (value: WithMap) : int =
+        let mutable size = 0
+
+        for kvp in value.Labels do
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
+
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize
+
+        for kvp in value.Scores do
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
+
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: WithMap) : unit =
+        for kvp in value.Labels do
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
+
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(entrySize)
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(kvp.Key)
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(kvp.Value)
+
+        for kvp in value.Scores do
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
+
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(entrySize)
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(kvp.Key)
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(kvp.Value)
+
+    let encode (value: WithMap) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : WithMap =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let _Labels = System.Collections.Generic.Dictionary<string, string>()
+        let _Scores = System.Collections.Generic.Dictionary<string, int>()
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 ->
+                let entryData = input.ReadBytes().ToByteArray()
+                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                let mutable key = ""
+                let mutable mapValue = ""
+                let mutable entryTag = entryInput.ReadTag()
+
+                while entryTag <> 0u do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
+                    | 1 -> key <- entryInput.ReadString()
+                    | 2 -> mapValue <- entryInput.ReadString()
+                    | _ -> entryInput.SkipLastField()
+
+                    entryTag <- entryInput.ReadTag()
+
+                _Labels.[key] <- mapValue
+            | 2 ->
+                let entryData = input.ReadBytes().ToByteArray()
+                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                let mutable key = ""
+                let mutable mapValue = 0
+                let mutable entryTag = entryInput.ReadTag()
+
+                while entryTag <> 0u do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
+                    | 1 -> key <- entryInput.ReadString()
+                    | 2 -> mapValue <- entryInput.ReadInt32()
+                    | _ -> entryInput.SkipLastField()
+
+                    entryTag <- entryInput.ReadTag()
+
+                _Scores.[key] <- mapValue
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Labels = _Labels |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithMap) : unit =
+        writer.WriteStartObject()
+
+        if not (Map.isEmpty value.Labels) then
+            writer.WriteStartObject("labels")
+
+            for kvp in value.Labels do
+                writer.WritePropertyName(string kvp.Key)
+                writer.WriteStringValue(kvp.Value)
+
+            writer.WriteEndObject()
+
+        if not (Map.isEmpty value.Scores) then
+            writer.WriteStartObject("scores")
+
+            for kvp in value.Scores do
+                writer.WritePropertyName(string kvp.Key)
+                writer.WriteNumberValue(kvp.Value)
+
+            writer.WriteEndObject()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: WithMap) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : WithMap =
+        let _Labels = System.Collections.Generic.Dictionary<string, string>()
+        let _Scores = System.Collections.Generic.Dictionary<string, int>()
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "labels" ->
+                for entry in prop.Value.EnumerateObject() do
+                    _Labels.[entry.Name] <- entry.Value.GetString()
+            | "scores" ->
+                for entry in prop.Value.EnumerateObject() do
+                    _Scores.[entry.Name] <- entry.Value.GetInt32()
+            | _ -> ()
+
+        { Labels = _Labels |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq }
+
+    let decodeJson (json: string) : WithMap =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

@@ -1,0 +1,139 @@
+namespace Billing
+
+type Invoice =
+    { Id: string
+      Total: Money option
+      LineItems: Money list }
+
+module Invoice =
+    let empty =
+        { Id = ""
+          Total = None
+          LineItems = [] }
+
+    let computeSize (value: Invoice) : int =
+        let mutable size = 0
+
+        if value.Id <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+
+        match value.Total with
+        | Some v ->
+            let subSize = Money.computeSize v
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        for item in value.LineItems do
+            let subSize = Money.computeSize item
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Invoice) : unit =
+        if value.Id <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Id)
+
+        match value.Total with
+        | Some v ->
+            let subSize = Money.computeSize v
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Money.writeTo output v
+        | None -> ()
+
+        for item in value.LineItems do
+            let subSize = Money.computeSize item
+            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Money.writeTo output item
+
+    let encode (value: Invoice) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Invoice =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Id = ""
+        let mutable _Total = None
+        let _LineItems = ResizeArray<Money>()
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Id <- input.ReadString()
+            | 2 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _Total <- Some(Money.decode subBytes)
+            | 3 ->
+                let subBytes = input.ReadBytes().ToByteArray()
+                _LineItems.Add(Money.decode subBytes)
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Id = _Id
+          Total = _Total
+          LineItems = Seq.toList _LineItems }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Invoice) : unit =
+        writer.WriteStartObject()
+
+        if value.Id <> "" then
+            writer.WriteString("id", value.Id)
+
+        match value.Total with
+        | Some v ->
+            writer.WritePropertyName("total")
+            Money.writeJsonTo writer v
+        | None -> ()
+
+        if not (List.isEmpty value.LineItems) then
+            writer.WriteStartArray("lineItems")
+
+            for item in value.LineItems do
+                Money.writeJsonTo writer item
+
+            writer.WriteEndArray()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Invoice) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Invoice =
+        let mutable _Id = ""
+        let mutable _Total = None
+        let _LineItems = ResizeArray<Money>()
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "id" -> _Id <- prop.Value.GetString()
+            | "total" -> _Total <- Some(Money.decodeJsonElement prop.Value)
+            | "lineItems" ->
+                for item in prop.Value.EnumerateArray() do
+                    _LineItems.Add(Money.decodeJsonElement item)
+            | "line_items" ->
+                for item in prop.Value.EnumerateArray() do
+                    _LineItems.Add(Money.decodeJsonElement item)
+            | _ -> ()
+
+        { Id = _Id
+          Total = _Total
+          LineItems = Seq.toList _LineItems }
+
+    let decodeJson (json: string) : Invoice =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

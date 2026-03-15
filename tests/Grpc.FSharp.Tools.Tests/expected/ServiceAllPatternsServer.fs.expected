@@ -1,0 +1,61 @@
+namespace Testservice
+
+open Grpc.Core
+open System.Threading.Tasks
+
+type TestServiceHandlers =
+    { Ping: PingRequest -> ServerCallContext -> Task<PingReply>
+      ServerStream: PingRequest -> IServerStreamWriter<StreamItem> -> ServerCallContext -> Task
+      ClientStream: IAsyncStreamReader<StreamItem> -> ServerCallContext -> Task<Summary>
+      BidiStream: IAsyncStreamReader<StreamItem> -> IServerStreamWriter<StreamItem> -> ServerCallContext -> Task }
+
+[<BindServiceMethod(typeof<TestServiceService>, "BindService")>]
+type TestServiceService(handlers: TestServiceHandlers) =
+    static member private pingMethod =
+        Method<PingRequest, PingReply>(MethodType.Unary, "testservice.TestService", "Ping", Marshaller(System.Func<_, _>(PingRequest.encode), System.Func<_, _>(PingRequest.decode)), Marshaller(System.Func<_, _>(PingReply.encode), System.Func<_, _>(PingReply.decode)))
+
+    static member private serverStreamMethod =
+        Method<PingRequest, StreamItem>(MethodType.ServerStreaming, "testservice.TestService", "ServerStream", Marshaller(System.Func<_, _>(PingRequest.encode), System.Func<_, _>(PingRequest.decode)), Marshaller(System.Func<_, _>(StreamItem.encode), System.Func<_, _>(StreamItem.decode)))
+
+    static member private clientStreamMethod =
+        Method<StreamItem, Summary>(MethodType.ClientStreaming, "testservice.TestService", "ClientStream", Marshaller(System.Func<_, _>(StreamItem.encode), System.Func<_, _>(StreamItem.decode)), Marshaller(System.Func<_, _>(Summary.encode), System.Func<_, _>(Summary.decode)))
+
+    static member private bidiStreamMethod =
+        Method<StreamItem, StreamItem>(MethodType.DuplexStreaming, "testservice.TestService", "BidiStream", Marshaller(System.Func<_, _>(StreamItem.encode), System.Func<_, _>(StreamItem.decode)), Marshaller(System.Func<_, _>(StreamItem.encode), System.Func<_, _>(StreamItem.decode)))
+
+    member _.Handlers = handlers
+    abstract Ping: request: PingRequest * context: ServerCallContext -> Task<PingReply>
+    default _.Ping(request: PingRequest, context: ServerCallContext) = handlers.Ping request context
+
+    abstract ServerStream:
+        request: PingRequest * responseStream: IServerStreamWriter<StreamItem> * context: ServerCallContext -> Task
+
+    default _.ServerStream
+        (request: PingRequest, responseStream: IServerStreamWriter<StreamItem>, context: ServerCallContext)
+        =
+        handlers.ServerStream request responseStream context
+
+    abstract ClientStream: requestStream: IAsyncStreamReader<StreamItem> * context: ServerCallContext -> Task<Summary>
+
+    default _.ClientStream(requestStream: IAsyncStreamReader<StreamItem>, context: ServerCallContext) =
+        handlers.ClientStream requestStream context
+
+    abstract BidiStream:
+        requestStream: IAsyncStreamReader<StreamItem> *
+        responseStream: IServerStreamWriter<StreamItem> *
+        context: ServerCallContext ->
+            Task
+
+    default _.BidiStream
+        (
+            requestStream: IAsyncStreamReader<StreamItem>,
+            responseStream: IServerStreamWriter<StreamItem>,
+            context: ServerCallContext
+        ) =
+        handlers.BidiStream requestStream responseStream context
+
+    static member BindService(binder: ServiceBinderBase, service: TestServiceService) =
+        binder.AddMethod(TestServiceService.pingMethod, UnaryServerMethod<PingRequest, PingReply>(fun req ctx -> service.Ping(req, ctx)))
+        binder.AddMethod(TestServiceService.serverStreamMethod, ServerStreamingServerMethod<PingRequest, StreamItem>(fun req stream ctx -> service.ServerStream(req, stream, ctx)))
+        binder.AddMethod(TestServiceService.clientStreamMethod, ClientStreamingServerMethod<StreamItem, Summary>(fun stream ctx -> service.ClientStream(stream, ctx)))
+        binder.AddMethod(TestServiceService.bidiStreamMethod, DuplexStreamingServerMethod<StreamItem, StreamItem>(fun reqStream resStream ctx -> service.BidiStream(reqStream, resStream, ctx)))

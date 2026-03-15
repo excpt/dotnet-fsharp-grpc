@@ -1,0 +1,60 @@
+syntax = "proto3";
+package interop;
+
+// Covers: enum
+enum Status {
+  STATUS_UNKNOWN = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+}
+
+// Covers: basic scalars, string
+message Person {
+  string name = 1;
+  int32 age = 2;
+}
+
+// Covers: all scalar types
+message ScalarTypes {
+  double double_field = 1;
+  float float_field = 2;
+  int32 int32_field = 3;
+  int64 int64_field = 4;
+  uint32 uint32_field = 5;
+  uint64 uint64_field = 6;
+  sint32 sint32_field = 7;
+  sint64 sint64_field = 8;
+  fixed32 fixed32_field = 9;
+  fixed64 fixed64_field = 10;
+  sfixed32 sfixed32_field = 11;
+  sfixed64 sfixed64_field = 12;
+  bool bool_field = 13;
+  string string_field = 14;
+  bytes bytes_field = 15;
+}
+
+// Covers: nested message, optional, message field
+message Address {
+  string street = 1;
+  string city = 2;
+  optional string zip_code = 3;
+}
+
+// Covers: enum field, message field, repeated, optional, map, oneof
+message UserProfile {
+  string id = 1;
+  string display_name = 2;
+  Status status = 3;
+  Address home_address = 4;
+  repeated string tags = 5;
+  repeated int32 scores = 6;
+  repeated Address other_addresses = 7;
+  map<string, string> metadata = 8;
+  map<string, int32> ratings = 9;
+  optional double rating = 10;
+
+  oneof contact {
+    string phone_number = 11;
+    string email = 12;
+  }
+}

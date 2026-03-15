@@ -1,0 +1,12 @@
+syntax = "proto3";
+package example;
+
+message Address {
+  string street = 1;
+  string city = 2;
+}
+
+message Company {
+  string name = 1;
+  int32 employee_count = 2;
+}

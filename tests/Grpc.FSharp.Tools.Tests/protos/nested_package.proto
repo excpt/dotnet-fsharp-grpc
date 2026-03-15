@@ -1,0 +1,7 @@
+syntax = "proto3";
+package example.accounts.v1;
+
+message Account {
+  string id = 1;
+  string display_name = 2;
+}

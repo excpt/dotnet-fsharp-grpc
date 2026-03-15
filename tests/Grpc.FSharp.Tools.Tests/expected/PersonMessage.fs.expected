@@ -1,0 +1,88 @@
+namespace Example
+
+type Person = { Name: string; Age: int }
+
+module Person =
+    let empty = { Name = ""; Age = 0 }
+
+    let computeSize (value: Person) : int =
+        let mutable size = 0
+
+        if value.Name <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+
+        if value.Age <> 0 then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.Age)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Person) : unit =
+        if value.Name <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Name)
+
+        if value.Age <> 0 then
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(value.Age)
+
+    let encode (value: Person) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decode (data: byte array) : Person =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        let mutable _Name = ""
+        let mutable _Age = 0
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Name <- input.ReadString()
+            | 2 -> _Age <- input.ReadInt32()
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Name = _Name; Age = _Age }
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Person) : unit =
+        writer.WriteStartObject()
+
+        if value.Name <> "" then
+            writer.WriteString("name", value.Name)
+
+        if value.Age <> 0 then
+            writer.WriteNumber("age", value.Age)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Person) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Person =
+        let mutable _Name = ""
+        let mutable _Age = 0
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "name" -> _Name <- prop.Value.GetString()
+            | "age" -> _Age <- prop.Value.GetInt32()
+            | _ -> ()
+
+        { Name = _Name; Age = _Age }
+
+    let decodeJson (json: string) : Person =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

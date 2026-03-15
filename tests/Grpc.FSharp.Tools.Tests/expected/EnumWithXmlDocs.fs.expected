@@ -1,0 +1,6 @@
+/// <summary>Status of a resource.</summary>
+type Status =
+    /// <summary>Default.</summary>
+    | Unknown = 0
+    /// <summary>Resource is active.</summary>
+    | Active = 1

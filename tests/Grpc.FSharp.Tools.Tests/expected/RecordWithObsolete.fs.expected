@@ -1,0 +1,2 @@
+[<System.Obsolete("This message is deprecated.")>]
+type LegacyUser = { Name: string }

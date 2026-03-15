@@ -1,0 +1,35 @@
+<Project>
+    <ItemGroup>
+        <!-- Benchmarking -->
+        <PackageVersion Include="BenchmarkDotNet" Version="0.14.0"/>
+
+        <!-- Testing -->
+        <PackageVersion Include="xunit.v3" Version="3.2.2"/>
+        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5"/>
+        <PackageVersion Include="FsUnit.xUnit" Version="7.1.1"/>
+        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0"/>
+        <PackageVersion Include="coverlet.collector" Version="8.0.0"/>
+
+        <!-- Logging -->
+        <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0"/>
+
+        <!-- Source Link -->
+        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.102"/>
+
+        <!-- Code Generation -->
+        <PackageVersion Include="Fabulous.AST" Version="1.10.0"/>
+
+        <!-- Core -->
+        <PackageVersion Include="FSharp.Core" Version="11.0.100"/>
+        <PackageVersion Include="Google.Protobuf" Version="3.34.0"/>
+        <PackageVersion Include="Grpc.Tools" Version="2.72.0"/>
+
+        <!-- gRPC -->
+        <PackageVersion Include="Grpc.Core.Api" Version="2.76.0"/>
+        <PackageVersion Include="Grpc.AspNetCore.Server" Version="2.76.0"/>
+        <PackageVersion Include="Grpc.Net.Client" Version="2.76.0"/>
+
+        <!-- ASP.NET Core Testing -->
+        <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="8.0.16"/>
+    </ItemGroup>
+</Project>

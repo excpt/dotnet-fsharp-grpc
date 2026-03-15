@@ -1,0 +1,33 @@
+syntax = "proto3";
+package testservice;
+
+message PingRequest {
+  string message = 1;
+}
+
+message PingReply {
+  string message = 1;
+}
+
+message StreamItem {
+  int32 value = 1;
+}
+
+message Summary {
+  int32 count = 1;
+  int32 total = 2;
+}
+
+service TestService {
+  // Unary
+  rpc Ping (PingRequest) returns (PingReply);
+
+  // Server streaming
+  rpc ServerStream (PingRequest) returns (stream StreamItem);
+
+  // Client streaming
+  rpc ClientStream (stream StreamItem) returns (Summary);
+
+  // Bidi streaming
+  rpc BidiStream (stream StreamItem) returns (stream StreamItem);
+}

@@ -1,0 +1,4 @@
+type User =
+    { Name: string }
+
+    static member Empty = { Name = "" }

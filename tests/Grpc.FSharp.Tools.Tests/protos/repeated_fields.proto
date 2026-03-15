@@ -1,0 +1,7 @@
+syntax = "proto3";
+package example;
+
+message WithRepeated {
+  repeated string tags = 1;
+  repeated int32 scores = 2;
+}

@@ -1,0 +1,34 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Grpc.FSharp.Benchmarks/Grpc.FSharp.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/ProtoFileStore/ProtoFileStore.fsproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="CONTRIBUTING.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="docs/tutorial.md" />
+    <File Path="dotnet-tools.json" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Grpc.FSharp.Tools.Codegen/Grpc.FSharp.Tools.Codegen.fsproj" />
+    <Project Path="src/Grpc.FSharp.Tools/Grpc.FSharp.Tools.fsproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Grpc.FSharp.AspNetCore.Tests/Grpc.FSharp.AspNetCore.Tests.fsproj" />
+    <Project Path="tests/Grpc.FSharp.GrpcCrossLang.Tests.FSharp/Grpc.FSharp.GrpcCrossLang.Tests.FSharp.fsproj" />
+    <Project Path="tests/Grpc.FSharp.GrpcCrossLang.Tests/Grpc.FSharp.GrpcCrossLang.Tests.csproj" />
+    <Project Path="tests/Grpc.FSharp.Integration.Tests.FSharp/Grpc.FSharp.Integration.Tests.FSharp.fsproj" />
+    <Project Path="tests/Grpc.FSharp.Integration.Tests/Grpc.FSharp.Integration.Tests.csproj" />
+    <Project Path="tests/Grpc.FSharp.Tools.Tests/Grpc.FSharp.Tools.Tests.fsproj" />
+  </Folder>
+</Solution>
