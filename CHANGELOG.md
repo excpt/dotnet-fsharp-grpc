@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 This file is automatically updated by [versionize](https://github.com/versionize/versionize).
 
 
+<a name="0.1.1"></a>
+## [0.1.1](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.1) (2026-03-15)
+
 <a name="0.1.0"></a>
 ## [0.1.0](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.0) (2026-03-15)
 

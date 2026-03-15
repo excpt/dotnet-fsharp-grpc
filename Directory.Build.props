@@ -6,7 +6,7 @@
         <RepositoryUrl>https://github.com/excpt/dotnet-fsharp-grpc</RepositoryUrl>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <Version>0.1.0</Version>
+        <Version>0.1.1</Version>
 
         <!-- Source Link: enables stepping into source when debugging NuGet packages -->
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
