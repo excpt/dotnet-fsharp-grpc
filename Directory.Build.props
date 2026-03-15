@@ -3,7 +3,7 @@
         <RootNamespace>FSharp.Grpc</RootNamespace>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <Authors>contributors</Authors>
-        <RepositoryUrl>https://github.com/excpt/dotnet-grpc-fsharp</RepositoryUrl>
+        <RepositoryUrl>https://github.com/excpt/dotnet-fsharp-grpc</RepositoryUrl>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <VersionPrefix>0.1.0</VersionPrefix>
