@@ -66,8 +66,7 @@ module Person =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Person =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Person =
         let mutable _Name = ""
         let mutable _Age = 0
         let mutable tag = input.ReadTag()
@@ -81,6 +80,10 @@ module Person =
             tag <- input.ReadTag()
 
         { Name = _Name; Age = _Age }
+
+    let decode (data: byte array) : Person =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Person) : unit =
         writer.WriteStartObject()
@@ -300,8 +303,7 @@ module ScalarTypes =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : ScalarTypes =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : ScalarTypes =
         let mutable _DoubleField = 0.0
         let mutable _FloatField = 0.0f
         let mutable _Int32Field = 0
@@ -355,6 +357,10 @@ module ScalarTypes =
           BoolField = _BoolField
           StringField = _StringField
           BytesField = _BytesField }
+
+    let decode (data: byte array) : ScalarTypes =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: ScalarTypes) : unit =
         writer.WriteStartObject()
@@ -604,8 +610,7 @@ module Address =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Address =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Address =
         let mutable _Street = ""
         let mutable _City = ""
         let mutable _ZipCode = None
@@ -623,6 +628,10 @@ module Address =
         { Street = _Street
           City = _City
           ZipCode = _ZipCode }
+
+    let decode (data: byte array) : Address =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
         writer.WriteStartObject()
@@ -904,8 +913,7 @@ module UserProfile =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : UserProfile =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : UserProfile =
         let mutable _Id = ""
         let mutable _DisplayName = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
@@ -925,26 +933,24 @@ module UserProfile =
             | 2 -> _DisplayName <- input.ReadString()
             | 3 -> _Status <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
             | 4 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _HomeAddress <- Some(Address.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _HomeAddress <- Some(Address.decodeFrom subInput)
             | 5 -> _Tags.Add(input.ReadString())
             | 6 ->
                 let wt = Google.Protobuf.WireFormat.GetTagWireType(tag)
 
                 if wt = Google.Protobuf.WireFormat.WireType.LengthDelimited then
-                    let packedData = input.ReadBytes().ToByteArray()
-                    use packedInput = new Google.Protobuf.CodedInputStream(packedData)
+                    use packedInput = input.ReadBytes().CreateCodedInput()
 
                     while not packedInput.IsAtEnd do
                         _Scores.Add(packedInput.ReadInt32())
                 else
                     _Scores.Add(input.ReadInt32())
             | 7 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _OtherAddresses.Add(Address.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _OtherAddresses.Add(Address.decodeFrom subInput)
             | 8 ->
-                let entryData = input.ReadBytes().ToByteArray()
-                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
                 let mutable mapValue = ""
                 let mutable entryTag = entryInput.ReadTag()
@@ -959,8 +965,7 @@ module UserProfile =
 
                 _Metadata.[key] <- mapValue
             | 9 ->
-                let entryData = input.ReadBytes().ToByteArray()
-                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
                 let mutable mapValue = 0
                 let mutable entryTag = entryInput.ReadTag()
@@ -992,6 +997,10 @@ module UserProfile =
           Ratings = _Ratings |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
           Rating = _Rating
           Contact = _Contact }
+
+    let decode (data: byte array) : UserProfile =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: UserProfile) : unit =
         writer.WriteStartObject()

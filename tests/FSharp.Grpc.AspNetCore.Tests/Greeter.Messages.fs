@@ -33,8 +33,7 @@ module HelloRequest =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : HelloRequest =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : HelloRequest =
         let mutable _Name = ""
         let mutable tag = input.ReadTag()
 
@@ -46,6 +45,10 @@ module HelloRequest =
             tag <- input.ReadTag()
 
         { Name = _Name }
+
+    let decode (data: byte array) : HelloRequest =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: HelloRequest) : unit =
         writer.WriteStartObject()
@@ -109,8 +112,7 @@ module HelloReply =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : HelloReply =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : HelloReply =
         let mutable _Message = ""
         let mutable tag = input.ReadTag()
 
@@ -122,6 +124,10 @@ module HelloReply =
             tag <- input.ReadTag()
 
         { Message = _Message }
+
+    let decode (data: byte array) : HelloReply =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: HelloReply) : unit =
         writer.WriteStartObject()

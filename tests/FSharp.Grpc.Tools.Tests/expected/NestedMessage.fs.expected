@@ -30,8 +30,7 @@ module Inner =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Inner =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Inner =
         let mutable _Value = ""
         let mutable tag = input.ReadTag()
 
@@ -43,6 +42,10 @@ module Inner =
             tag <- input.ReadTag()
 
         { Value = _Value }
+
+    let decode (data: byte array) : Inner =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Inner) : unit =
         writer.WriteStartObject()
@@ -117,8 +120,7 @@ module Outer =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Outer =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Outer =
         let mutable _Name = ""
         let mutable _Inner = None
         let mutable tag = input.ReadTag()
@@ -127,13 +129,17 @@ module Outer =
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | 2 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _Inner <- Some(Inner.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _Inner <- Some(Inner.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
 
         { Name = _Name; Inner = _Inner }
+
+    let decode (data: byte array) : Outer =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Outer) : unit =
         writer.WriteStartObject()

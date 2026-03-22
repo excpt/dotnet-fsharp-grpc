@@ -33,8 +33,7 @@ module HelloRequest =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : HelloRequest =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : HelloRequest =
         let mutable _Name = ""
         let mutable tag = input.ReadTag()
 
@@ -46,6 +45,10 @@ module HelloRequest =
             tag <- input.ReadTag()
 
         { Name = _Name }
+
+    let decode (data: byte array) : HelloRequest =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
 type HelloReply = { Message: string }
 
@@ -80,8 +83,7 @@ module HelloReply =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : HelloReply =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : HelloReply =
         let mutable _Message = ""
         let mutable tag = input.ReadTag()
 
@@ -93,6 +95,10 @@ module HelloReply =
             tag <- input.ReadTag()
 
         { Message = _Message }
+
+    let decode (data: byte array) : HelloReply =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
 type StreamItem = { Value: int }
 
@@ -127,8 +133,7 @@ module StreamItem =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : StreamItem =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : StreamItem =
         let mutable _Value = 0
         let mutable tag = input.ReadTag()
 
@@ -140,6 +145,10 @@ module StreamItem =
             tag <- input.ReadTag()
 
         { Value = _Value }
+
+    let decode (data: byte array) : StreamItem =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
 type Summary = { Count: int; Total: int }
 
@@ -184,8 +193,7 @@ module Summary =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Summary =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Summary =
         let mutable _Count = 0
         let mutable _Total = 0
         let mutable tag = input.ReadTag()
@@ -199,3 +207,7 @@ module Summary =
             tag <- input.ReadTag()
 
         { Count = _Count; Total = _Total }
+
+    let decode (data: byte array) : Summary =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input

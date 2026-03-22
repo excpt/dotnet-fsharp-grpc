@@ -61,8 +61,7 @@ module WithMap =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : WithMap =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : WithMap =
         let _Labels = System.Collections.Generic.Dictionary<string, string>()
         let _Scores = System.Collections.Generic.Dictionary<string, int>()
         let mutable tag = input.ReadTag()
@@ -70,8 +69,7 @@ module WithMap =
         while tag <> 0u do
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 ->
-                let entryData = input.ReadBytes().ToByteArray()
-                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
                 let mutable mapValue = ""
                 let mutable entryTag = entryInput.ReadTag()
@@ -86,8 +84,7 @@ module WithMap =
 
                 _Labels.[key] <- mapValue
             | 2 ->
-                let entryData = input.ReadBytes().ToByteArray()
-                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
                 let mutable mapValue = 0
                 let mutable entryTag = entryInput.ReadTag()
@@ -107,6 +104,10 @@ module WithMap =
 
         { Labels = _Labels |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
           Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq }
+
+    let decode (data: byte array) : WithMap =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithMap) : unit =
         writer.WriteStartObject()

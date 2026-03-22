@@ -28,8 +28,7 @@ module Simple =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Simple =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Simple =
         let mutable _Name = ""
         let mutable tag = input.ReadTag()
 
@@ -41,6 +40,10 @@ module Simple =
             tag <- input.ReadTag()
 
         { Name = _Name }
+
+    let decode (data: byte array) : Simple =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Simple) : unit =
         writer.WriteStartObject()

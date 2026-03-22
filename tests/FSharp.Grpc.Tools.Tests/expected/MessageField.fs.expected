@@ -37,8 +37,7 @@ module Address =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Address =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Address =
         let mutable _Street = ""
         let mutable _City = ""
         let mutable tag = input.ReadTag()
@@ -52,6 +51,10 @@ module Address =
             tag <- input.ReadTag()
 
         { Street = _Street; City = _City }
+
+    let decode (data: byte array) : Address =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
         writer.WriteStartObject()
@@ -133,8 +136,7 @@ module Person =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Person =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Person =
         let mutable _Name = ""
         let mutable _HomeAddress = None
         let mutable tag = input.ReadTag()
@@ -143,14 +145,18 @@ module Person =
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | 2 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _HomeAddress <- Some(Address.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _HomeAddress <- Some(Address.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
 
         { Name = _Name
           HomeAddress = _HomeAddress }
+
+    let decode (data: byte array) : Person =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Person) : unit =
         writer.WriteStartObject()

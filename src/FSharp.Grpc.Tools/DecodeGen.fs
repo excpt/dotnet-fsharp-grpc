@@ -66,11 +66,11 @@ let decodeOneofClauses (msg: DescriptorProto) (idx: int) =
             MatchClauseExpr(
                 ConstantPat(Constant($"{c.Number}")),
                 CompExprBodyExpr(
-                    [ LetOrUseExpr(Value("subBytes", E "input.ReadBytes().ToByteArray()"))
+                    [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
                       OtherExpr(
                           LongIdentSetExpr(
                               $"_{duFieldName}",
-                              E $"Some({duName}.{caseName}({msgTypeName}.decode subBytes))"
+                              E $"Some({duName}.{caseName}({msgTypeName}.decodeFrom subInput))"
                           )
                       ) ]
                 )
@@ -103,8 +103,8 @@ let decodeMapClause (msg: DescriptorProto) (f: FieldDescriptorProto) (fname: str
             MatchClauseExpr(
                 ConstantPat(Constant("2")),
                 CompExprBodyExpr(
-                    [ LetOrUseExpr(Value("subBytes", E "entryInput.ReadBytes().ToByteArray()"))
-                      OtherExpr(LongIdentSetExpr("mapValue", E $"{msgTypeName}.decode subBytes")) ]
+                    [ LetOrUseExpr(Use("subInput", E "entryInput.ReadBytes().CreateCodedInput()"))
+                      OtherExpr(LongIdentSetExpr("mapValue", E $"{msgTypeName}.decodeFrom subInput")) ]
                 )
             )
         else
@@ -135,8 +135,7 @@ let decodeMapClause (msg: DescriptorProto) (f: FieldDescriptorProto) (fname: str
     MatchClauseExpr(
         ConstantPat(Constant($"{fieldNum}")),
         CompExprBodyExpr(
-            [ LetOrUseExpr(Value("entryData", E "input.ReadBytes().ToByteArray()"))
-              LetOrUseExpr(Use("entryInput", E "new Google.Protobuf.CodedInputStream(entryData)"))
+            [ LetOrUseExpr(Use("entryInput", E "input.ReadBytes().CreateCodedInput()"))
               LetOrUseExpr(Value("key", E keyDefault).toMutable ())
               LetOrUseExpr(Value("mapValue", E valueDefault).toMutable ())
               LetOrUseExpr(Value("entryTag", E "entryInput.ReadTag()").toMutable ())
@@ -163,8 +162,8 @@ let decodeRepeatedClause (f: FieldDescriptorProto) (fname: string) (fieldNum: in
         MatchClauseExpr(
             ConstantPat(Constant($"{fieldNum}")),
             CompExprBodyExpr(
-                [ LetOrUseExpr(Value("subBytes", E "input.ReadBytes().ToByteArray()"))
-                  OtherExpr(E $"_{fname}.Add({msgTypeName}.decode subBytes)") ]
+                [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                  OtherExpr(E $"_{fname}.Add({msgTypeName}.decodeFrom subInput)") ]
             )
         )
     elif f.Type = FieldDescriptorProto.Types.Type.String then
@@ -194,8 +193,7 @@ let decodeRepeatedClause (f: FieldDescriptorProto) (fname: string) (fieldNum: in
                       IfThenElseExpr(
                           E "wt = Google.Protobuf.WireFormat.WireType.LengthDelimited",
                           CompExprBodyExpr(
-                              [ LetOrUseExpr(Value("packedData", E "input.ReadBytes().ToByteArray()"))
-                                LetOrUseExpr(Use("packedInput", E "new Google.Protobuf.CodedInputStream(packedData)"))
+                              [ LetOrUseExpr(Use("packedInput", E "input.ReadBytes().CreateCodedInput()"))
                                 OtherExpr(WhileExpr(E "not packedInput.IsAtEnd", E $"_{fname}.Add({packedCastExpr})")) ]
                           ),
                           E $"_{fname}.Add({castExpr})"
@@ -214,8 +212,8 @@ let decodeOptionalClause (f: FieldDescriptorProto) (fname: string) (fieldNum: in
         MatchClauseExpr(
             ConstantPat(Constant($"{fieldNum}")),
             CompExprBodyExpr(
-                [ LetOrUseExpr(Value("subBytes", E "input.ReadBytes().ToByteArray()"))
-                  OtherExpr(LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decode subBytes)")) ]
+                [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                  OtherExpr(LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decodeFrom subInput)")) ]
             )
         )
     elif f.Type = FieldDescriptorProto.Types.Type.Enum then
@@ -235,9 +233,9 @@ let decodeMessageClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int
         MatchClauseExpr(
             ConstantPat(Constant($"{fieldNum}")),
             CompExprBodyExpr(
-                [ LetOrUseExpr(Value("subBytes", E "input.ReadBytes().ToByteArray()"))
+                [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
                   LetOrUseExpr(Value("msg", E $"{wktType}()"))
-                  OtherExpr(E "msg.MergeFrom(subBytes)")
+                  OtherExpr(E "msg.MergeFrom(subInput)")
                   OtherExpr(LongIdentSetExpr($"_{fname}", E "Some(msg)")) ]
             )
         )
@@ -249,9 +247,9 @@ let decodeMessageClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int
             MatchClauseExpr(
                 ConstantPat(Constant($"{fieldNum}")),
                 CompExprBodyExpr(
-                    [ LetOrUseExpr(Value("subBytes", E "input.ReadBytes().ToByteArray()"))
+                    [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
                       LetOrUseExpr(Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"))
-                      OtherExpr(E "wrapper.MergeFrom(subBytes)")
+                      OtherExpr(E "wrapper.MergeFrom(subInput)")
                       OtherExpr(LongIdentSetExpr($"_{fname}", E "Some(wrapper.Value)")) ]
                 )
             )
@@ -259,8 +257,8 @@ let decodeMessageClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int
             MatchClauseExpr(
                 ConstantPat(Constant($"{fieldNum}")),
                 CompExprBodyExpr(
-                    [ LetOrUseExpr(Value("subBytes", E "input.ReadBytes().ToByteArray()"))
-                      OtherExpr(LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decode subBytes)")) ]
+                    [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                      OtherExpr(LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decodeFrom subInput)")) ]
                 )
             )
 
@@ -281,8 +279,8 @@ let decodeScalarClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int)
     else
         MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), LongIdentSetExpr($"_{fname}", E $"input.{rm}()"))
 
-/// Generate complete decode function as AST widget.
-let generateDecodeAST (msg: DescriptorProto) =
+/// Generate decodeFrom function as AST widget (reads from existing CodedInputStream).
+let generateDecodeFromAST (msg: DescriptorProto) =
     let mutable emittedOneofs = Set.empty
     let fieldVars = ResizeArray<FieldVar>()
     let clauses = ResizeArray<WidgetBuilder<MatchClauseNode>>()
@@ -345,8 +343,7 @@ let generateDecodeAST (msg: DescriptorProto) =
         |> Seq.toList
 
     let bodyExprs =
-        [ yield LetOrUseExpr(Use("input", E "new Google.Protobuf.CodedInputStream(data)"))
-          yield! varDecls
+        [ yield! varDecls
           yield LetOrUseExpr(Value("tag", E "input.ReadTag()").toMutable ())
           yield
               OtherExpr(
@@ -363,8 +360,20 @@ let generateDecodeAST (msg: DescriptorProto) =
           yield OtherExpr(RecordExpr(recordFields)) ]
 
     Function(
+        "decodeFrom",
+        ParenPat(ParameterPat("input", LongIdent("Google.Protobuf.CodedInputStream"))),
+        CompExprBodyExpr(bodyExprs),
+        LongIdent(msg.Name)
+    )
+
+/// Generate thin decode wrapper that creates a CodedInputStream and delegates to decodeFrom.
+let generateDecodeAST (msg: DescriptorProto) =
+    Function(
         "decode",
         ParenPat(ParameterPat("data", LongIdent("byte array"))),
-        CompExprBodyExpr(bodyExprs),
+        CompExprBodyExpr(
+            [ LetOrUseExpr(Use("input", E "new Google.Protobuf.CodedInputStream(data)"))
+              OtherExpr(E "decodeFrom input") ]
+        ),
         LongIdent(msg.Name)
     )

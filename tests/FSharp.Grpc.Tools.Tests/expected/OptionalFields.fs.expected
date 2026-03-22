@@ -47,8 +47,7 @@ module WithOptional =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : WithOptional =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : WithOptional =
         let mutable _Nickname = None
         let mutable _Age = None
         let mutable tag = input.ReadTag()
@@ -62,6 +61,10 @@ module WithOptional =
             tag <- input.ReadTag()
 
         { Nickname = _Nickname; Age = _Age }
+
+    let decode (data: byte array) : WithOptional =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithOptional) : unit =
         writer.WriteStartObject()

@@ -158,8 +158,7 @@ module ScalarTypes =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : ScalarTypes =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : ScalarTypes =
         let mutable _DoubleField = 0.0
         let mutable _FloatField = 0.0f
         let mutable _Int32Field = 0
@@ -213,6 +212,10 @@ module ScalarTypes =
           BoolField = _BoolField
           StringField = _StringField
           BytesField = _BytesField }
+
+    let decode (data: byte array) : ScalarTypes =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: ScalarTypes) : unit =
         writer.WriteStartObject()

@@ -37,8 +37,7 @@ module Person =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Person =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Person =
         let mutable _Name = ""
         let mutable _Age = 0
         let mutable tag = input.ReadTag()
@@ -52,6 +51,10 @@ module Person =
             tag <- input.ReadTag()
 
         { Name = _Name; Age = _Age }
+
+    let decode (data: byte array) : Person =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Person) : unit =
         writer.WriteStartObject()

@@ -56,8 +56,7 @@ module Payment =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Payment =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Payment =
         let mutable _Id = ""
         let mutable _Method = None
         let mutable tag = input.ReadTag()
@@ -72,6 +71,10 @@ module Payment =
             tag <- input.ReadTag()
 
         { Id = _Id; Method = _Method }
+
+    let decode (data: byte array) : Payment =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Payment) : unit =
         writer.WriteStartObject()

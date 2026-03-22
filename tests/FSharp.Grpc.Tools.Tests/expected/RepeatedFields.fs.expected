@@ -50,8 +50,7 @@ module WithRepeated =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : WithRepeated =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : WithRepeated =
         let _Tags = ResizeArray<string>()
         let _Scores = ResizeArray<int>()
         let mutable tag = input.ReadTag()
@@ -63,8 +62,7 @@ module WithRepeated =
                 let wt = Google.Protobuf.WireFormat.GetTagWireType(tag)
 
                 if wt = Google.Protobuf.WireFormat.WireType.LengthDelimited then
-                    let packedData = input.ReadBytes().ToByteArray()
-                    use packedInput = new Google.Protobuf.CodedInputStream(packedData)
+                    use packedInput = input.ReadBytes().CreateCodedInput()
 
                     while not packedInput.IsAtEnd do
                         _Scores.Add(packedInput.ReadInt32())
@@ -76,6 +74,10 @@ module WithRepeated =
 
         { Tags = Seq.toList _Tags
           Scores = Seq.toList _Scores }
+
+    let decode (data: byte array) : WithRepeated =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithRepeated) : unit =
         writer.WriteStartObject()

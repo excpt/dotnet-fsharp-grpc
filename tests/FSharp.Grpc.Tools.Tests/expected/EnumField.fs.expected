@@ -60,8 +60,7 @@ module Account =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Account =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Account =
         let mutable _Name = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
         let mutable tag = input.ReadTag()
@@ -75,6 +74,10 @@ module Account =
             tag <- input.ReadTag()
 
         { Name = _Name; Status = _Status }
+
+    let decode (data: byte array) : Account =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Account) : unit =
         writer.WriteStartObject()

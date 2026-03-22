@@ -84,8 +84,7 @@ module Address =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Address =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Address =
         let mutable _Street = ""
         let mutable _City = ""
         let mutable _CountryCode = ""
@@ -106,6 +105,10 @@ module Address =
           City = _City
           CountryCode = _CountryCode
           ZipCode = _ZipCode }
+
+    let decode (data: byte array) : Address =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
         writer.WriteStartObject()
@@ -231,8 +234,7 @@ module Department =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Department =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Department =
         let mutable _Name = ""
         let _Members = ResizeArray<User>()
         let mutable _Priority = LanguagePrimitives.EnumOfValue 0
@@ -242,8 +244,8 @@ module Department =
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | 2 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _Members.Add(User.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _Members.Add(User.decodeFrom subInput)
             | 3 -> _Priority <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
             | _ -> input.SkipLastField()
 
@@ -252,6 +254,10 @@ module Department =
         { Name = _Name
           Members = Seq.toList _Members
           Priority = _Priority }
+
+    let decode (data: byte array) : Department =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Department) : unit =
         writer.WriteStartObject()
@@ -391,8 +397,7 @@ module Organization =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Organization =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Organization =
         let mutable _Name = ""
         let mutable _BillingAddress = None
         let _DomainNames = ResizeArray<string>()
@@ -404,12 +409,11 @@ module Organization =
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | 2 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _BillingAddress <- Some(Address.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _BillingAddress <- Some(Address.decodeFrom subInput)
             | 3 -> _DomainNames.Add(input.ReadString())
             | 4 ->
-                let entryData = input.ReadBytes().ToByteArray()
-                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
                 let mutable mapValue = ""
                 let mutable entryTag = entryInput.ReadTag()
@@ -424,8 +428,8 @@ module Organization =
 
                 _Metadata.[key] <- mapValue
             | 5 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _Departments.Add(Department.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _Departments.Add(Department.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
@@ -435,6 +439,10 @@ module Organization =
           DomainNames = Seq.toList _DomainNames
           Metadata = _Metadata |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
           Departments = Seq.toList _Departments }
+
+    let decode (data: byte array) : Organization =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Organization) : unit =
         writer.WriteStartObject()
@@ -694,8 +702,7 @@ module User =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : User =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : User =
         let mutable _Id = ""
         let mutable _DisplayName = ""
         let mutable _Email = ""
@@ -716,14 +723,13 @@ module User =
             | 3 -> _Email <- input.ReadString()
             | 4 -> _Status <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
             | 5 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _HomeAddress <- Some(Address.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _HomeAddress <- Some(Address.decodeFrom subInput)
             | 6 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _OtherAddresses.Add(Address.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _OtherAddresses.Add(Address.decodeFrom subInput)
             | 7 ->
-                let entryData = input.ReadBytes().ToByteArray()
-                use entryInput = new Google.Protobuf.CodedInputStream(entryData)
+                use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
                 let mutable mapValue = 0
                 let mutable entryTag = entryInput.ReadTag()
@@ -739,13 +745,13 @@ module User =
                 _Scores.[key] <- mapValue
             | 8 -> _Rating <- Some(input.ReadDouble())
             | 9 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _Organization <- Some(Organization.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _Organization <- Some(Organization.decodeFrom subInput)
             | 10 -> _Contact <- Some(UserContact.PhoneNumber(input.ReadString()))
             | 11 -> _Contact <- Some(UserContact.SlackHandle(input.ReadString()))
             | 12 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _Manager <- Some(User.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _Manager <- Some(User.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
@@ -761,6 +767,10 @@ module User =
           Organization = _Organization
           Contact = _Contact
           Manager = _Manager }
+
+    let decode (data: byte array) : User =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: User) : unit =
         writer.WriteStartObject()

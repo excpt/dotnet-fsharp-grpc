@@ -60,8 +60,7 @@ module Invoice =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Invoice =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Invoice =
         let mutable _Id = ""
         let mutable _Total = None
         let _LineItems = ResizeArray<Money>()
@@ -71,11 +70,11 @@ module Invoice =
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Id <- input.ReadString()
             | 2 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _Total <- Some(Money.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _Total <- Some(Money.decodeFrom subInput)
             | 3 ->
-                let subBytes = input.ReadBytes().ToByteArray()
-                _LineItems.Add(Money.decode subBytes)
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _LineItems.Add(Money.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
@@ -83,6 +82,10 @@ module Invoice =
         { Id = _Id
           Total = _Total
           LineItems = Seq.toList _LineItems }
+
+    let decode (data: byte array) : Invoice =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Invoice) : unit =
         writer.WriteStartObject()

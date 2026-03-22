@@ -37,8 +37,7 @@ module Address =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Address =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Address =
         let mutable _Street = ""
         let mutable _City = ""
         let mutable tag = input.ReadTag()
@@ -52,6 +51,10 @@ module Address =
             tag <- input.ReadTag()
 
         { Street = _Street; City = _City }
+
+    let decode (data: byte array) : Address =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
         writer.WriteStartObject()
@@ -124,8 +127,7 @@ module Company =
             output.Flush()
             buffer
 
-    let decode (data: byte array) : Company =
-        use input = new Google.Protobuf.CodedInputStream(data)
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Company =
         let mutable _Name = ""
         let mutable _EmployeeCount = 0
         let mutable tag = input.ReadTag()
@@ -140,6 +142,10 @@ module Company =
 
         { Name = _Name
           EmployeeCount = _EmployeeCount }
+
+    let decode (data: byte array) : Company =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Company) : unit =
         writer.WriteStartObject()

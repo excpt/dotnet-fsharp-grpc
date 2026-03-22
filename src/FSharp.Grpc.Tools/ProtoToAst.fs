@@ -96,6 +96,7 @@ let private messageToTypes (msg: DescriptorProto) =
     let computeSizeFunc = generateComputeSizeAST msg
     let writeToFunc = generateWriteToAST msg
     let encodeFunc = generateEncodeAST msg
+    let decodeFromFunc = generateDecodeFromAST msg
     let decodeFunc = generateDecodeAST msg
     let writeJsonToFunc = generateWriteJsonToAST msg
     let encodeJsonFunc = generateEncodeJsonAST msg
@@ -109,6 +110,7 @@ let private messageToTypes (msg: DescriptorProto) =
                 computeSizeFunc
                 writeToFunc
                 encodeFunc
+                decodeFromFunc
                 decodeFunc
                 writeJsonToFunc
                 encodeJsonFunc
