@@ -6,6 +6,11 @@
         <LangVersion>latest</LangVersion>
         <PackageId>FSharp.Grpc.Tools.Codegen</PackageId>
         <RootNamespace>FSharp.Grpc.Tools.Codegen</RootNamespace>
+        <RollForward>LatestMajor</RollForward>
+
+        <!-- Don't put the bare DLL into lib/ — we ship the full publish output in tools/ -->
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     </PropertyGroup>
 
     <ItemGroup>
@@ -25,5 +30,13 @@
         <None Include="build/**" Pack="true" PackagePath="build/" />
         <None Include="../../README.md" Pack="true" PackagePath="/" />
     </ItemGroup>
+
+    <!-- Publish before pack to collect all dependencies, then pack into tools/ -->
+    <Target Name="_PublishForPack" BeforeTargets="_GetPackageFiles">
+        <Exec Command="dotnet publish &quot;$(MSBuildProjectFullPath)&quot; -c $(Configuration) -f $(TargetFramework) --no-restore -o &quot;$(BaseIntermediateOutputPath)tool-publish/&quot;" />
+        <ItemGroup>
+            <Content Include="$(BaseIntermediateOutputPath)tool-publish/**/*" Pack="true" PackagePath="tools/net8.0/" />
+        </ItemGroup>
+    </Target>
 
 </Project>

@@ -34,9 +34,10 @@
         </PropertyGroup>
     </Target>
 
-    <!-- Resolve the codegen tool DLL -->
+    <!-- Resolve the codegen tool DLL: tools/ in the NuGet package, bin/ for local development -->
     <PropertyGroup>
-        <_FSharpGrpc_CodegenDll Condition="'$(_FSharpGrpc_CodegenDll)' == ''">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'bin', '$(Configuration)', 'net8.0', 'FSharp.Grpc.Tools.Codegen.dll'))</_FSharpGrpc_CodegenDll>
+        <_FSharpGrpc_CodegenDll Condition="'$(_FSharpGrpc_CodegenDll)' == ''">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'tools', 'net8.0', 'FSharp.Grpc.Tools.Codegen.dll'))</_FSharpGrpc_CodegenDll>
+        <_FSharpGrpc_CodegenDll Condition="!Exists('$(_FSharpGrpc_CodegenDll)')">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'bin', '$(Configuration)', 'net8.0', 'FSharp.Grpc.Tools.Codegen.dll'))</_FSharpGrpc_CodegenDll>
     </PropertyGroup>
 
     <!-- Generate F# from .proto files -->
