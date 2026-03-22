@@ -142,28 +142,28 @@ Apple M3 Max, .NET 10.0:
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# Encode | 22.28 ns | 112 B |
-| F# Encode | 21.55 ns | 112 B |
-| C# Decode | 37.98 ns | 256 B |
-| F# Decode | 27.85 ns | 248 B |
+| C# Encode | 23.12 ns | 112 B |
+| F# Encode | 23.45 ns | 112 B |
+| C# Decode | 40.01 ns | 256 B |
+| F# Decode | 28.97 ns | 248 B |
 
 **ScalarTypes** (15 fields):
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# Encode | 105.3 ns | 200 B |
-| F# Encode | 165.8 ns | 264 B |
-| C# Decode | 113.4 ns | 424 B |
-| F# Decode | 140.6 ns | 448 B |
+| C# Encode | 117.4 ns | 200 B |
+| F# Encode | 171.3 ns | 264 B |
+| C# Decode | 128.1 ns | 424 B |
+| F# Decode | 138.7 ns | 448 B |
 
 **UserProfile** (enum, nested message, repeated, maps, oneof):
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# Encode | 444.3 ns | 496 B |
-| F# Encode | 615.9 ns | 1,664 B |
+| C# Encode | 453.6 ns | 496 B |
+| F# Encode | 442.6 ns | 504 B |
 | C# Decode | 622.5 ns | 2,640 B |
-| F# Decode | 1,089.6 ns | 6,136 B |
+| F# Decode | 829.0 ns | 5,200 B |
 
 ### JSON
 
@@ -171,28 +171,28 @@ Apple M3 Max, .NET 10.0:
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# JSON Encode | 122.06 ns | 568 B |
-| F# JSON Encode | 97.27 ns | 944 B |
-| C# JSON Decode | 201.77 ns | 560 B |
-| F# JSON Decode | 185.50 ns | 216 B |
+| C# JSON Encode | 130.54 ns | 568 B |
+| F# JSON Encode | 99.97 ns | 944 B |
+| C# JSON Decode | 207.10 ns | 560 B |
+| F# JSON Decode | 186.04 ns | 216 B |
 
 **ScalarTypes** (15 fields):
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# JSON Encode | 1,236.5 ns | 3.2 KB |
-| F# JSON Encode | 665.0 ns | 6.91 KB |
-| C# JSON Decode | 1,955.7 ns | 3.45 KB |
-| F# JSON Decode | 1,131.4 ns | 1.27 KB |
+| C# JSON Encode | 1,241.1 ns | 3.2 KB |
+| F# JSON Encode | 677.5 ns | 6.91 KB |
+| C# JSON Decode | 1,953.7 ns | 3.45 KB |
+| F# JSON Decode | 1,124.1 ns | 1.27 KB |
 
 **UserProfile** (enum, nested message, repeated, maps, oneof):
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# JSON Encode | 1,600.9 ns | 4.56 KB |
-| F# JSON Encode | 924.4 ns | 7.69 KB |
-| C# JSON Decode | 2,699.3 ns | 6.42 KB |
-| F# JSON Decode | 2,166.6 ns | 4.28 KB |
+| C# JSON Encode | 1,670.5 ns | 4.56 KB |
+| F# JSON Encode | 965.6 ns | 7.69 KB |
+| C# JSON Decode | 2,791.8 ns | 6.42 KB |
+| F# JSON Decode | 2,185.8 ns | 4.28 KB |
 
 ## Requirements
 
