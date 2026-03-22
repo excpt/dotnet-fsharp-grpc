@@ -25,14 +25,8 @@ let scalarDefault (field: FieldDescriptorProto) =
 /// Classify field variable declarations for decode.
 type FieldVar =
     | MutableScalar of fieldName: string * varName: string * defaultExpr: string
-    | ResizeArrayVar of fieldName: string * varName: string * elemType: string
-    | DictionaryVar of fieldName: string * varName: string * keyType: string * valueType: string
-
-/// Element type string safe for generic type params (byte array -> byte[]).
-let resolveElemType (f: FieldDescriptorProto) =
-    match f.Type with
-    | FieldDescriptorProto.Types.Type.Bytes -> "byte[]"
-    | _ -> baseTypeName f
+    | MutableList of fieldName: string * varName: string
+    | MutableMap of fieldName: string * varName: string
 
 /// Default value for a mutable scalar field declaration in decode.
 let fieldDefault (field: FieldDescriptorProto) =
@@ -150,7 +144,7 @@ let decodeMapClause (msg: DescriptorProto) (f: FieldDescriptorProto) (fname: str
                       )
                   )
               )
-              OtherExpr(E $"_{fname}.[key] <- mapValue") ]
+              OtherExpr(E $"_{fname} <- Map.add key mapValue _{fname}") ]
         )
     )
 
@@ -163,13 +157,16 @@ let decodeRepeatedClause (f: FieldDescriptorProto) (fname: string) (fieldNum: in
             ConstantPat(Constant($"{fieldNum}")),
             CompExprBodyExpr(
                 [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
-                  OtherExpr(E $"_{fname}.Add({msgTypeName}.decodeFrom subInput)") ]
+                  OtherExpr(E $"_{fname} <- {msgTypeName}.decodeFrom subInput :: _{fname}") ]
             )
         )
     elif f.Type = FieldDescriptorProto.Types.Type.String then
-        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), E $"_{fname}.Add(input.ReadString())")
+        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), E $"_{fname} <- input.ReadString() :: _{fname}")
     elif f.Type = FieldDescriptorProto.Types.Type.Bytes then
-        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), E $"_{fname}.Add(input.ReadBytes().ToByteArray())")
+        MatchClauseExpr(
+            ConstantPat(Constant($"{fieldNum}")),
+            E $"_{fname} <- input.ReadBytes().ToByteArray() :: _{fname}"
+        )
     else
         let rm = readMethod f
 
@@ -194,9 +191,14 @@ let decodeRepeatedClause (f: FieldDescriptorProto) (fname: string) (fieldNum: in
                           E "wt = Google.Protobuf.WireFormat.WireType.LengthDelimited",
                           CompExprBodyExpr(
                               [ LetOrUseExpr(Use("packedInput", E "input.ReadBytes().CreateCodedInput()"))
-                                OtherExpr(WhileExpr(E "not packedInput.IsAtEnd", E $"_{fname}.Add({packedCastExpr})")) ]
+                                OtherExpr(
+                                    WhileExpr(
+                                        E "not packedInput.IsAtEnd",
+                                        E $"_{fname} <- {packedCastExpr} :: _{fname}"
+                                    )
+                                ) ]
                           ),
-                          E $"_{fname}.Add({castExpr})"
+                          E $"_{fname} <- {castExpr} :: _{fname}"
                       )
                   ) ]
             )
@@ -299,14 +301,10 @@ let generateDecodeFromAST (msg: DescriptorProto) =
                 fieldVars.Add(MutableScalar(duFieldName, $"_{duFieldName}", "None"))
                 clauses.AddRange(decodeOneofClauses msg idx)
         elif tryGetMapEntry msg f |> Option.isSome then
-            let entry = (tryGetMapEntry msg f).Value
-            let keyType = resolveElemType entry.Field.[0]
-            let valueType = resolveElemType entry.Field.[1]
-            fieldVars.Add(DictionaryVar(fname, $"_{fname}", keyType, valueType))
+            fieldVars.Add(MutableMap(fname, $"_{fname}"))
             clauses.Add(decodeMapClause msg f fname fieldNum)
         elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
-            let elemType = resolveElemType f
-            fieldVars.Add(ResizeArrayVar(fname, $"_{fname}", elemType))
+            fieldVars.Add(MutableList(fname, $"_{fname}"))
             clauses.Add(decodeRepeatedClause f fname fieldNum)
         elif f.Proto3Optional then
             fieldVars.Add(MutableScalar(fname, $"_{fname}", "None"))
@@ -326,9 +324,8 @@ let generateDecodeFromAST (msg: DescriptorProto) =
         |> Seq.map (fun fv ->
             match fv with
             | MutableScalar(_, vn, defaultExpr) -> LetOrUseExpr(Value(vn, E defaultExpr).toMutable ())
-            | ResizeArrayVar(_, vn, elemType) -> LetOrUseExpr(Value(vn, E $"ResizeArray<{elemType}>()"))
-            | DictionaryVar(_, vn, kt, vt) ->
-                LetOrUseExpr(Value(vn, E $"System.Collections.Generic.Dictionary<{kt}, {vt}>()")))
+            | MutableList(_, vn) -> LetOrUseExpr(Value(vn, E "[]").toMutable ())
+            | MutableMap(_, vn) -> LetOrUseExpr(Value(vn, E "Map.empty").toMutable ()))
         |> Seq.toList
 
     // Build final record fields
@@ -337,9 +334,8 @@ let generateDecodeFromAST (msg: DescriptorProto) =
         |> Seq.map (fun fv ->
             match fv with
             | MutableScalar(fn, vn, _) -> RecordFieldExpr(fn, E vn)
-            | ResizeArrayVar(fn, vn, _) -> RecordFieldExpr(fn, E $"Seq.toList {vn}")
-            | DictionaryVar(fn, vn, _, _) ->
-                RecordFieldExpr(fn, E $"{vn} |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq"))
+            | MutableList(fn, vn) -> RecordFieldExpr(fn, E $"List.rev {vn}")
+            | MutableMap(fn, vn) -> RecordFieldExpr(fn, E vn))
         |> Seq.toList
 
     let bodyExprs =

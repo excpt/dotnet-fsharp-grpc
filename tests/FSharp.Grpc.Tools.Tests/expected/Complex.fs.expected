@@ -230,7 +230,7 @@ module Department =
 
     let decodeFrom (input: Google.Protobuf.CodedInputStream) : Department =
         let mutable _Name = ""
-        let _Members = ResizeArray<User>()
+        let mutable _Members = []
         let mutable _Priority = LanguagePrimitives.EnumOfValue 0
         let mutable tag = input.ReadTag()
 
@@ -239,14 +239,14 @@ module Department =
             | 1 -> _Name <- input.ReadString()
             | 2 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _Members.Add(User.decodeFrom subInput)
+                _Members <- User.decodeFrom subInput :: _Members
             | 3 -> _Priority <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
 
         { Name = _Name
-          Members = Seq.toList _Members
+          Members = List.rev _Members
           Priority = _Priority }
 
     let decode (data: byte array) : Department =
@@ -281,7 +281,7 @@ module Department =
 
     let decodeJsonElement (element: System.Text.Json.JsonElement) : Department =
         let mutable _Name = ""
-        let _Members = ResizeArray<User>()
+        let mutable _Members = []
         let mutable _Priority = LanguagePrimitives.EnumOfValue 0
 
         for prop in element.EnumerateObject() do
@@ -289,14 +289,14 @@ module Department =
             | "name" -> _Name <- prop.Value.GetString()
             | "members" ->
                 for item in prop.Value.EnumerateArray() do
-                    _Members.Add(User.decodeJsonElement item)
+                    _Members <- User.decodeJsonElement item :: _Members
             | "priority" ->
                 _Priority <-
                     Priority.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())
             | _ -> ()
 
         { Name = _Name
-          Members = Seq.toList _Members
+          Members = List.rev _Members
           Priority = _Priority }
 
     let decodeJson (json: string) : Department =
@@ -367,9 +367,9 @@ module Organization =
     let decodeFrom (input: Google.Protobuf.CodedInputStream) : Organization =
         let mutable _Name = ""
         let mutable _BillingAddress = None
-        let _DomainNames = ResizeArray<string>()
-        let _Metadata = System.Collections.Generic.Dictionary<string, string>()
-        let _Departments = ResizeArray<Department>()
+        let mutable _DomainNames = []
+        let mutable _Metadata = Map.empty
+        let mutable _Departments = []
         let mutable tag = input.ReadTag()
 
         while tag <> 0u do
@@ -378,7 +378,7 @@ module Organization =
             | 2 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
                 _BillingAddress <- Some(Address.decodeFrom subInput)
-            | 3 -> _DomainNames.Add(input.ReadString())
+            | 3 -> _DomainNames <- input.ReadString() :: _DomainNames
             | 4 ->
                 use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
@@ -393,19 +393,19 @@ module Organization =
 
                     entryTag <- entryInput.ReadTag()
 
-                _Metadata.[key] <- mapValue
+                _Metadata <- Map.add key mapValue _Metadata
             | 5 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _Departments.Add(Department.decodeFrom subInput)
+                _Departments <- Department.decodeFrom subInput :: _Departments
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
 
         { Name = _Name
           BillingAddress = _BillingAddress
-          DomainNames = Seq.toList _DomainNames
-          Metadata = _Metadata |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
-          Departments = Seq.toList _Departments }
+          DomainNames = List.rev _DomainNames
+          Metadata = _Metadata
+          Departments = List.rev _Departments }
 
     let decode (data: byte array) : Organization =
         use input = new Google.Protobuf.CodedInputStream(data)
@@ -460,9 +460,9 @@ module Organization =
     let decodeJsonElement (element: System.Text.Json.JsonElement) : Organization =
         let mutable _Name = ""
         let mutable _BillingAddress = None
-        let _DomainNames = ResizeArray<string>()
-        let _Metadata = System.Collections.Generic.Dictionary<string, string>()
-        let _Departments = ResizeArray<Department>()
+        let mutable _DomainNames = []
+        let mutable _Metadata = Map.empty
+        let mutable _Departments = []
 
         for prop in element.EnumerateObject() do
             match prop.Name with
@@ -471,23 +471,23 @@ module Organization =
             | "billing_address" -> _BillingAddress <- Some(Address.decodeJsonElement prop.Value)
             | "domainNames" ->
                 for item in prop.Value.EnumerateArray() do
-                    _DomainNames.Add(item.GetString())
+                    _DomainNames <- item.GetString() :: _DomainNames
             | "domain_names" ->
                 for item in prop.Value.EnumerateArray() do
-                    _DomainNames.Add(item.GetString())
+                    _DomainNames <- item.GetString() :: _DomainNames
             | "metadata" ->
                 for entry in prop.Value.EnumerateObject() do
-                    _Metadata.[entry.Name] <- entry.Value.GetString()
+                    _Metadata <- Map.add (entry.Name) (entry.Value.GetString()) _Metadata
             | "departments" ->
                 for item in prop.Value.EnumerateArray() do
-                    _Departments.Add(Department.decodeJsonElement item)
+                    _Departments <- Department.decodeJsonElement item :: _Departments
             | _ -> ()
 
         { Name = _Name
           BillingAddress = _BillingAddress
-          DomainNames = Seq.toList _DomainNames
-          Metadata = _Metadata |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
-          Departments = Seq.toList _Departments }
+          DomainNames = List.rev _DomainNames
+          Metadata = _Metadata
+          Departments = List.rev _Departments }
 
     let decodeJson (json: string) : Organization =
         use doc = System.Text.Json.JsonDocument.Parse(json)
@@ -654,8 +654,8 @@ module User =
         let mutable _Email = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
         let mutable _HomeAddress = None
-        let _OtherAddresses = ResizeArray<Address>()
-        let _Scores = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _OtherAddresses = []
+        let mutable _Scores = Map.empty
         let mutable _Rating = None
         let mutable _Organization = None
         let mutable _Contact = None
@@ -673,7 +673,7 @@ module User =
                 _HomeAddress <- Some(Address.decodeFrom subInput)
             | 6 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _OtherAddresses.Add(Address.decodeFrom subInput)
+                _OtherAddresses <- Address.decodeFrom subInput :: _OtherAddresses
             | 7 ->
                 use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
@@ -688,7 +688,7 @@ module User =
 
                     entryTag <- entryInput.ReadTag()
 
-                _Scores.[key] <- mapValue
+                _Scores <- Map.add key mapValue _Scores
             | 8 -> _Rating <- Some(input.ReadDouble())
             | 9 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
@@ -707,8 +707,8 @@ module User =
           Email = _Email
           Status = _Status
           HomeAddress = _HomeAddress
-          OtherAddresses = Seq.toList _OtherAddresses
-          Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          OtherAddresses = List.rev _OtherAddresses
+          Scores = _Scores
           Rating = _Rating
           Organization = _Organization
           Contact = _Contact
@@ -795,8 +795,8 @@ module User =
         let mutable _Email = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
         let mutable _HomeAddress = None
-        let _OtherAddresses = ResizeArray<Address>()
-        let _Scores = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _OtherAddresses = []
+        let mutable _Scores = Map.empty
         let mutable _Rating = None
         let mutable _Organization = None
         let mutable _Contact = None
@@ -815,13 +815,13 @@ module User =
             | "home_address" -> _HomeAddress <- Some(Address.decodeJsonElement prop.Value)
             | "otherAddresses" ->
                 for item in prop.Value.EnumerateArray() do
-                    _OtherAddresses.Add(Address.decodeJsonElement item)
+                    _OtherAddresses <- Address.decodeJsonElement item :: _OtherAddresses
             | "other_addresses" ->
                 for item in prop.Value.EnumerateArray() do
-                    _OtherAddresses.Add(Address.decodeJsonElement item)
+                    _OtherAddresses <- Address.decodeJsonElement item :: _OtherAddresses
             | "scores" ->
                 for entry in prop.Value.EnumerateObject() do
-                    _Scores.[entry.Name] <- entry.Value.GetInt32()
+                    _Scores <- Map.add (entry.Name) (entry.Value.GetInt32()) _Scores
             | "rating" ->
                 _Rating <-
                     Some(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then (match prop.Value.GetString() with | "NaN" -> System.Double.NaN | "Infinity" -> System.Double.PositiveInfinity | "-Infinity" -> System.Double.NegativeInfinity | s -> float s) else prop.Value.GetDouble())
@@ -838,8 +838,8 @@ module User =
           Email = _Email
           Status = _Status
           HomeAddress = _HomeAddress
-          OtherAddresses = Seq.toList _OtherAddresses
-          Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          OtherAddresses = List.rev _OtherAddresses
+          Scores = _Scores
           Rating = _Rating
           Organization = _Organization
           Contact = _Contact

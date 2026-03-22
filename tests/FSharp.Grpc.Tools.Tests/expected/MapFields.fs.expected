@@ -32,8 +32,8 @@ module WithMap =
             buffer
 
     let decodeFrom (input: Google.Protobuf.CodedInputStream) : WithMap =
-        let _Labels = System.Collections.Generic.Dictionary<string, string>()
-        let _Scores = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _Labels = Map.empty
+        let mutable _Scores = Map.empty
         let mutable tag = input.ReadTag()
 
         while tag <> 0u do
@@ -52,7 +52,7 @@ module WithMap =
 
                     entryTag <- entryInput.ReadTag()
 
-                _Labels.[key] <- mapValue
+                _Labels <- Map.add key mapValue _Labels
             | 2 ->
                 use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
@@ -67,13 +67,12 @@ module WithMap =
 
                     entryTag <- entryInput.ReadTag()
 
-                _Scores.[key] <- mapValue
+                _Scores <- Map.add key mapValue _Scores
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
 
-        { Labels = _Labels |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
-          Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq }
+        { Labels = _Labels; Scores = _Scores }
 
     let decode (data: byte array) : WithMap =
         use input = new Google.Protobuf.CodedInputStream(data)
@@ -110,21 +109,20 @@ module WithMap =
         System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
 
     let decodeJsonElement (element: System.Text.Json.JsonElement) : WithMap =
-        let _Labels = System.Collections.Generic.Dictionary<string, string>()
-        let _Scores = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _Labels = Map.empty
+        let mutable _Scores = Map.empty
 
         for prop in element.EnumerateObject() do
             match prop.Name with
             | "labels" ->
                 for entry in prop.Value.EnumerateObject() do
-                    _Labels.[entry.Name] <- entry.Value.GetString()
+                    _Labels <- Map.add (entry.Name) (entry.Value.GetString()) _Labels
             | "scores" ->
                 for entry in prop.Value.EnumerateObject() do
-                    _Scores.[entry.Name] <- entry.Value.GetInt32()
+                    _Scores <- Map.add (entry.Name) (entry.Value.GetInt32()) _Scores
             | _ -> ()
 
-        { Labels = _Labels |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
-          Scores = _Scores |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq }
+        { Labels = _Labels; Scores = _Scores }
 
     let decodeJson (json: string) : WithMap =
         use doc = System.Text.Json.JsonDocument.Parse(json)

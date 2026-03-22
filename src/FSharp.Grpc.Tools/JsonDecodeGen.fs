@@ -126,10 +126,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
             let entry = (tryGetMapEntry msg f).Value
             let keyField = entry.Field.[0]
             let valueField = entry.Field.[1]
-            let keyType = resolveElemType keyField
-            let valueType = resolveElemType valueField
-
-            fieldVars.Add(DictionaryVar(fname, $"_{fname}", keyType, valueType))
+            fieldVars.Add(MutableMap(fname, $"_{fname}"))
 
             let patterns =
                 if jsonName <> f.Name then
@@ -154,7 +151,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                                 ForEachDoExpr(
                                     "entry",
                                     E "prop.Value.EnumerateObject()",
-                                    E $"_{fname}.[{keyParseExpr}] <- {valueExpr}"
+                                    E $"_{fname} <- Map.add ({keyParseExpr}) ({valueExpr}) _{fname}"
                                 )
                             )
                         )
@@ -165,7 +162,8 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                                 ForEachDoExpr(
                                     "entry",
                                     E "prop.Value.EnumerateObject()",
-                                    E $"_{fname}.[{keyParseExpr}] <- {msgTypeName}.decodeJsonElement entry.Value"
+                                    E
+                                        $"_{fname} <- Map.add ({keyParseExpr}) ({msgTypeName}.decodeJsonElement entry.Value) _{fname}"
                                 )
                             )
                         )
@@ -178,13 +176,12 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                             ForEachDoExpr(
                                 "entry",
                                 E "prop.Value.EnumerateObject()",
-                                E $"_{fname}.[{keyParseExpr}] <- {readExpr}"
+                                E $"_{fname} <- Map.add ({keyParseExpr}) ({readExpr}) _{fname}"
                             )
                         )
                     )
         elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
-            let elemType = resolveElemType f
-            fieldVars.Add(ResizeArrayVar(fname, $"_{fname}", elemType))
+            fieldVars.Add(MutableList(fname, $"_{fname}"))
 
             let patterns =
                 if jsonName <> f.Name then
@@ -205,7 +202,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                                     "item",
                                     E "prop.Value.EnumerateArray()",
                                     E
-                                        $"_{fname}.Add(Google.Protobuf.JsonParser.Default.Parse<{wktType}>(item.GetRawText()))"
+                                        $"_{fname} <- Google.Protobuf.JsonParser.Default.Parse<{wktType}>(item.GetRawText()) :: _{fname}"
                                 )
                             )
                         )
@@ -216,7 +213,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                                 ForEachDoExpr(
                                     "item",
                                     E "prop.Value.EnumerateArray()",
-                                    E $"_{fname}.Add({msgTypeName}.decodeJsonElement item)"
+                                    E $"_{fname} <- {msgTypeName}.decodeJsonElement item :: _{fname}"
                                 )
                             )
                         )
@@ -226,7 +223,11 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                     clauses.Add(
                         MatchClauseExpr(
                             ConstantPat(Constant($"\"{pat}\"")),
-                            ForEachDoExpr("item", E "prop.Value.EnumerateArray()", E $"_{fname}.Add({readExpr})")
+                            ForEachDoExpr(
+                                "item",
+                                E "prop.Value.EnumerateArray()",
+                                E $"_{fname} <- {readExpr} :: _{fname}"
+                            )
                         )
                     )
         elif f.Proto3Optional then
@@ -348,9 +349,8 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
         |> Seq.map (fun fv ->
             match fv with
             | MutableScalar(_, vn, defaultExpr) -> LetOrUseExpr(Value(vn, E defaultExpr).toMutable ())
-            | ResizeArrayVar(_, vn, elemType) -> LetOrUseExpr(Value(vn, E $"ResizeArray<{elemType}>()"))
-            | DictionaryVar(_, vn, kt, vt) ->
-                LetOrUseExpr(Value(vn, E $"System.Collections.Generic.Dictionary<{kt}, {vt}>()")))
+            | MutableList(_, vn) -> LetOrUseExpr(Value(vn, E "[]").toMutable ())
+            | MutableMap(_, vn) -> LetOrUseExpr(Value(vn, E "Map.empty").toMutable ()))
         |> Seq.toList
 
     // Build final record fields
@@ -359,9 +359,8 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
         |> Seq.map (fun fv ->
             match fv with
             | MutableScalar(fn, vn, _) -> RecordFieldExpr(fn, E vn)
-            | ResizeArrayVar(fn, vn, _) -> RecordFieldExpr(fn, E $"Seq.toList {vn}")
-            | DictionaryVar(fn, vn, _, _) ->
-                RecordFieldExpr(fn, E $"{vn} |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq"))
+            | MutableList(fn, vn) -> RecordFieldExpr(fn, E $"List.rev {vn}")
+            | MutableMap(fn, vn) -> RecordFieldExpr(fn, E vn))
         |> Seq.toList
 
     let bodyExprs =

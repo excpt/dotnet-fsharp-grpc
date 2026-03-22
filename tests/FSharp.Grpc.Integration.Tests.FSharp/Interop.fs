@@ -927,11 +927,11 @@ module UserProfile =
         let mutable _DisplayName = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
         let mutable _HomeAddress = None
-        let _Tags = ResizeArray<string>()
-        let _Scores = ResizeArray<int>()
-        let _OtherAddresses = ResizeArray<Address>()
-        let _Metadata = System.Collections.Generic.Dictionary<string, string>()
-        let _Ratings = System.Collections.Generic.Dictionary<string, int>()
+        let mutable _Tags = []
+        let mutable _Scores = []
+        let mutable _OtherAddresses = []
+        let mutable _Metadata = Map.empty
+        let mutable _Ratings = Map.empty
         let mutable _Rating = None
         let mutable _Contact = None
         let mutable tag = input.ReadTag()
@@ -944,7 +944,7 @@ module UserProfile =
             | 4 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
                 _HomeAddress <- Some(Address.decodeFrom subInput)
-            | 5 -> _Tags.Add(input.ReadString())
+            | 5 -> _Tags <- input.ReadString() :: _Tags
             | 6 ->
                 let wt = Google.Protobuf.WireFormat.GetTagWireType(tag)
 
@@ -952,12 +952,12 @@ module UserProfile =
                     use packedInput = input.ReadBytes().CreateCodedInput()
 
                     while not packedInput.IsAtEnd do
-                        _Scores.Add(packedInput.ReadInt32())
+                        _Scores <- packedInput.ReadInt32() :: _Scores
                 else
-                    _Scores.Add(input.ReadInt32())
+                    _Scores <- input.ReadInt32() :: _Scores
             | 7 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _OtherAddresses.Add(Address.decodeFrom subInput)
+                _OtherAddresses <- Address.decodeFrom subInput :: _OtherAddresses
             | 8 ->
                 use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
@@ -972,7 +972,7 @@ module UserProfile =
 
                     entryTag <- entryInput.ReadTag()
 
-                _Metadata.[key] <- mapValue
+                _Metadata <- Map.add key mapValue _Metadata
             | 9 ->
                 use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
@@ -987,7 +987,7 @@ module UserProfile =
 
                     entryTag <- entryInput.ReadTag()
 
-                _Ratings.[key] <- mapValue
+                _Ratings <- Map.add key mapValue _Ratings
             | 10 -> _Rating <- Some(input.ReadDouble())
             | 11 -> _Contact <- Some(UserProfileContact.PhoneNumber(input.ReadString()))
             | 12 -> _Contact <- Some(UserProfileContact.Email(input.ReadString()))
@@ -999,11 +999,11 @@ module UserProfile =
           DisplayName = _DisplayName
           Status = _Status
           HomeAddress = _HomeAddress
-          Tags = Seq.toList _Tags
-          Scores = Seq.toList _Scores
-          OtherAddresses = Seq.toList _OtherAddresses
-          Metadata = _Metadata |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
-          Ratings = _Ratings |> Seq.map (fun kvp -> kvp.Key, kvp.Value) |> Map.ofSeq
+          Tags = List.rev _Tags
+          Scores = List.rev _Scores
+          OtherAddresses = List.rev _OtherAddresses
+          Metadata = _Metadata
+          Ratings = _Ratings
           Rating = _Rating
           Contact = _Contact }
 
