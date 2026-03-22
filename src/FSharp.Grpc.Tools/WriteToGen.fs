@@ -93,38 +93,15 @@ let generateWriteToAST (msg: DescriptorProto) =
             let valueField = entry.Field.[1]
             let keyWt = wireType keyField
             let keyWrite = writeMethod keyField
-            let keySizeExpr = computeSizeExpr "kvp.Key" keyField
+            let keySizeExpr = computeSizeExpr "mapKey" keyField
 
             if valueField.Type = FieldDescriptorProto.Types.Type.Message then
                 let msgTypeName = simpleTypeName valueField.TypeName
 
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "kvp",
-                            E $"value.{fname}",
-                            CompExprBodyExpr(
-                                [ LetOrUseExpr(Value("valueMsgSize", E $"{msgTypeName}.computeSize kvp.Value"))
-                                  LetOrUseExpr(
-                                      Value(
-                                          "entrySize",
-                                          E
-                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(valueMsgSize) + valueMsgSize"
-                                      )
-                                  )
-                                  OtherExpr(
-                                      E $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                  )
-                                  OtherExpr(E $"output.WriteLength(entrySize)")
-                                  OtherExpr(E $"output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt})")
-                                  OtherExpr(E $"output.{keyWrite}(kvp.Key)")
-                                  OtherExpr(
-                                      E $"output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                  )
-                                  OtherExpr(E $"output.WriteLength(valueMsgSize)")
-                                  OtherExpr(E $"{msgTypeName}.writeTo output kvp.Value") ]
-                            )
-                        )
+                        E
+                            $"value.{fname} |> Map.iter (fun mapKey mapValue -> let valueMsgSize = {msgTypeName}.computeSize mapValue in let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(valueMsgSize) + valueMsgSize in output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt}); output.{keyWrite}(mapKey); output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(valueMsgSize); {msgTypeName}.writeTo output mapValue)"
                     )
                 )
             else
@@ -133,8 +110,8 @@ let generateWriteToAST (msg: DescriptorProto) =
 
                 let valueSizeExpr =
                     match valueField.Type with
-                    | FieldDescriptorProto.Types.Type.Enum -> computeSizeExpr "int kvp.Value" valueField
-                    | _ -> computeSizeExpr "kvp.Value" valueField
+                    | FieldDescriptorProto.Types.Type.Enum -> computeSizeExpr "int mapValue" valueField
+                    | _ -> computeSizeExpr "mapValue" valueField
 
                 let castPrefix =
                     if valueField.Type = FieldDescriptorProto.Types.Type.Enum then
@@ -144,27 +121,8 @@ let generateWriteToAST (msg: DescriptorProto) =
 
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "kvp",
-                            E $"value.{fname}",
-                            CompExprBodyExpr(
-                                [ LetOrUseExpr(
-                                      Value(
-                                          "entrySize",
-                                          E
-                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + {valueSizeExpr}"
-                                      )
-                                  )
-                                  OtherExpr(
-                                      E $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                  )
-                                  OtherExpr(E $"output.WriteLength(entrySize)")
-                                  OtherExpr(E $"output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt})")
-                                  OtherExpr(E $"output.{keyWrite}(kvp.Key)")
-                                  OtherExpr(E $"output.WriteTag(2, Google.Protobuf.WireFormat.WireType.{valueWt})")
-                                  OtherExpr(E $"output.{valueWrite}({castPrefix}kvp.Value)") ]
-                            )
-                        )
+                        E
+                            $"value.{fname} |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + {valueSizeExpr} in output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt}); output.{keyWrite}(mapKey); output.WriteTag(2, Google.Protobuf.WireFormat.WireType.{valueWt}); output.{valueWrite}({castPrefix}mapValue))"
                     )
                 )
         elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
@@ -173,48 +131,22 @@ let generateWriteToAST (msg: DescriptorProto) =
 
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "item",
-                            E $"value.{fname}",
-                            CompExprBodyExpr(
-                                [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize item"))
-                                  OtherExpr(
-                                      E $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                  )
-                                  OtherExpr(E $"output.WriteLength(subSize)")
-                                  OtherExpr(E $"{msgTypeName}.writeTo output item") ]
-                            )
-                        )
+                        E
+                            $"value.{fname} |> List.iter (fun item -> let subSize = {msgTypeName}.computeSize item in output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(subSize); {msgTypeName}.writeTo output item)"
                     )
                 )
             elif f.Type = FieldDescriptorProto.Types.Type.String then
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "item",
-                            E $"value.{fname}",
-                            CompExprBodyExpr(
-                                [ OtherExpr(
-                                      E $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                  )
-                                  OtherExpr(E "output.WriteString(item)") ]
-                            )
-                        )
+                        E
+                            $"value.{fname} |> List.iter (fun item -> output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(item))"
                     )
                 )
             elif f.Type = FieldDescriptorProto.Types.Type.Bytes then
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "item",
-                            E $"value.{fname}",
-                            CompExprBodyExpr(
-                                [ OtherExpr(
-                                      E $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                  )
-                                  OtherExpr(E "output.WriteBytes(Google.Protobuf.ByteString.CopyFrom(item))") ]
-                            )
-                        )
+                        E
+                            $"value.{fname} |> List.iter (fun item -> output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteBytes(Google.Protobuf.ByteString.CopyFrom(item)))"
                     )
                 )
             else
@@ -238,19 +170,14 @@ let generateWriteToAST (msg: DescriptorProto) =
                             CompExprBodyExpr(
                                 [ LetOrUseExpr(Value("packedSize", ConstantExpr(Int(0))).toMutable ())
                                   OtherExpr(
-                                      ForEachDoExpr(
-                                          "item",
-                                          E $"value.{fname}",
-                                          E $"packedSize <- packedSize + {itemSizeExpr}"
-                                      )
+                                      E
+                                          $"value.{fname} |> List.iter (fun item -> packedSize <- packedSize + {itemSizeExpr})"
                                   )
                                   OtherExpr(
                                       E $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
                                   )
                                   OtherExpr(E $"output.WriteLength(packedSize)")
-                                  OtherExpr(
-                                      ForEachDoExpr("item", E $"value.{fname}", E $"output.{wm}({castPrefix}item)")
-                                  ) ]
+                                  OtherExpr(E $"value.{fname} |> List.iter (fun item -> output.{wm}({castPrefix}item))") ]
                             )
                         )
                     )

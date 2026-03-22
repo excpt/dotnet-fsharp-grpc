@@ -11,43 +11,13 @@ module WithMap =
 
     let computeSize (value: WithMap) : int =
         let mutable size = 0
-
-        for kvp in value.Labels do
-            let entrySize =
-                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
-
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize
-
-        for kvp in value.Scores do
-            let entrySize =
-                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
-
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize
-
+        value.Labels |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue) in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize)
+        value.Scores |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue) in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize)
         size
 
     let writeTo (output: Google.Protobuf.CodedOutputStream) (value: WithMap) : unit =
-        for kvp in value.Labels do
-            let entrySize =
-                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
-
-            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteLength(entrySize)
-            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Key)
-            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Value)
-
-        for kvp in value.Scores do
-            let entrySize =
-                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
-
-            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteLength(entrySize)
-            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Key)
-            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
-            output.WriteInt32(kvp.Value)
+        value.Labels |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue) in output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapKey); output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapValue))
+        value.Scores |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue) in output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapKey); output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint); output.WriteInt32(mapValue))
 
     let encode (value: WithMap) : byte array =
         let size = computeSize value

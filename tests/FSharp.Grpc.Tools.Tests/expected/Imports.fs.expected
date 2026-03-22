@@ -23,10 +23,7 @@ module Invoice =
             size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
-        for item in value.LineItems do
-            let subSize = Money.computeSize item
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
-
+        value.LineItems |> List.iter (fun item -> let subSize = Money.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)
         size
 
     let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Invoice) : unit =
@@ -42,11 +39,7 @@ module Invoice =
             Money.writeTo output v
         | None -> ()
 
-        for item in value.LineItems do
-            let subSize = Money.computeSize item
-            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteLength(subSize)
-            Money.writeTo output item
+        value.LineItems |> List.iter (fun item -> let subSize = Money.computeSize item in output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(subSize); Money.writeTo output item)
 
     let encode (value: Invoice) : byte array =
         let size = computeSize value

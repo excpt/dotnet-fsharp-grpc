@@ -198,9 +198,7 @@ module Department =
         if value.Name <> "" then
             size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
 
-        for item in value.Members do
-            let subSize = User.computeSize item
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        value.Members |> List.iter (fun item -> let subSize = User.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)
 
         if int value.Priority <> 0 then
             size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Priority)
@@ -212,11 +210,7 @@ module Department =
             output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteString(value.Name)
 
-        for item in value.Members do
-            let subSize = User.computeSize item
-            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteLength(subSize)
-            User.writeTo output item
+        value.Members |> List.iter (fun item -> let subSize = User.computeSize item in output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(subSize); User.writeTo output item)
 
         if int value.Priority <> 0 then
             output.WriteTag(3, Google.Protobuf.WireFormat.WireType.Varint)
@@ -336,19 +330,9 @@ module Organization =
             size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
-        for item in value.DomainNames do
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item)
-
-        for kvp in value.Metadata do
-            let entrySize =
-                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
-
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize
-
-        for item in value.Departments do
-            let subSize = Department.computeSize item
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
-
+        value.DomainNames |> List.iter (fun item -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item))
+        value.Metadata |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue) in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize)
+        value.Departments |> List.iter (fun item -> let subSize = Department.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)
         size
 
     let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Organization) : unit =
@@ -364,26 +348,9 @@ module Organization =
             Address.writeTo output v
         | None -> ()
 
-        for item in value.DomainNames do
-            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(item)
-
-        for kvp in value.Metadata do
-            let entrySize =
-                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
-
-            output.WriteTag(4, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteLength(entrySize)
-            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Key)
-            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Value)
-
-        for item in value.Departments do
-            let subSize = Department.computeSize item
-            output.WriteTag(5, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteLength(subSize)
-            Department.writeTo output item
+        value.DomainNames |> List.iter (fun item -> output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(item))
+        value.Metadata |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue) in output.WriteTag(4, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapKey); output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapValue))
+        value.Departments |> List.iter (fun item -> let subSize = Department.computeSize item in output.WriteTag(5, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(subSize); Department.writeTo output item)
 
     let encode (value: Organization) : byte array =
         let size = computeSize value
@@ -578,15 +545,8 @@ module User =
             size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
-        for item in value.OtherAddresses do
-            let subSize = Address.computeSize item
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(6) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
-
-        for kvp in value.Scores do
-            let entrySize =
-                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
-
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize
+        value.OtherAddresses |> List.iter (fun item -> let subSize = Address.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(6) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)
+        value.Scores |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue) in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize)
 
         match value.Rating with
         | Some v -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(8) + 8
@@ -640,22 +600,8 @@ module User =
             Address.writeTo output v
         | None -> ()
 
-        for item in value.OtherAddresses do
-            let subSize = Address.computeSize item
-            output.WriteTag(6, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteLength(subSize)
-            Address.writeTo output item
-
-        for kvp in value.Scores do
-            let entrySize =
-                Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
-
-            output.WriteTag(7, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteLength(entrySize)
-            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Key)
-            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
-            output.WriteInt32(kvp.Value)
+        value.OtherAddresses |> List.iter (fun item -> let subSize = Address.computeSize item in output.WriteTag(6, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(subSize); Address.writeTo output item)
+        value.Scores |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue) in output.WriteTag(7, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapKey); output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint); output.WriteInt32(mapValue))
 
         match value.Rating with
         | Some v ->

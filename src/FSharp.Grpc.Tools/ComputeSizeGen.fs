@@ -77,60 +77,27 @@ let generateComputeSizeAST (msg: DescriptorProto) =
             let entry = (tryGetMapEntry msg f).Value
             let keyField = entry.Field.[0]
             let valueField = entry.Field.[1]
-            let keySizeExpr = computeSizeExpr "kvp.Key" keyField
+            let keySizeExpr = computeSizeExpr "mapKey" keyField
 
             if valueField.Type = FieldDescriptorProto.Types.Type.Message then
                 let msgTypeName = simpleTypeName valueField.TypeName
 
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "kvp",
-                            E $"value.{fname}",
-                            CompExprBodyExpr(
-                                [ LetOrUseExpr(Value("valueMsgSize", E $"{msgTypeName}.computeSize kvp.Value"))
-                                  LetOrUseExpr(
-                                      Value(
-                                          "entrySize",
-                                          E
-                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(valueMsgSize) + valueMsgSize"
-                                      )
-                                  )
-                                  OtherExpr(
-                                      addToSize (
-                                          $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize"
-                                      )
-                                  ) ]
-                            )
-                        )
+                        E
+                            $"value.{fname} |> Map.iter (fun mapKey mapValue -> let valueMsgSize = {msgTypeName}.computeSize mapValue in let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(valueMsgSize) + valueMsgSize in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize)"
                     )
                 )
             else
                 let valueSizeExpr =
                     match valueField.Type with
-                    | FieldDescriptorProto.Types.Type.Enum -> computeSizeExpr "int kvp.Value" valueField
-                    | _ -> computeSizeExpr "kvp.Value" valueField
+                    | FieldDescriptorProto.Types.Type.Enum -> computeSizeExpr "int mapValue" valueField
+                    | _ -> computeSizeExpr "mapValue" valueField
 
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "kvp",
-                            E $"value.{fname}",
-                            CompExprBodyExpr(
-                                [ LetOrUseExpr(
-                                      Value(
-                                          "entrySize",
-                                          E
-                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + {valueSizeExpr}"
-                                      )
-                                  )
-                                  OtherExpr(
-                                      addToSize (
-                                          $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize"
-                                      )
-                                  ) ]
-                            )
-                        )
+                        E
+                            $"value.{fname} |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + {valueSizeExpr} in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize)"
                     )
                 )
         elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
@@ -139,42 +106,22 @@ let generateComputeSizeAST (msg: DescriptorProto) =
 
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "item",
-                            E $"value.{fname}",
-                            CompExprBodyExpr(
-                                [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize item"))
-                                  OtherExpr(
-                                      addToSize (
-                                          $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
-                                      )
-                                  ) ]
-                            )
-                        )
+                        E
+                            $"value.{fname} |> List.iter (fun item -> let subSize = {msgTypeName}.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)"
                     )
                 )
             elif f.Type = FieldDescriptorProto.Types.Type.String then
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "item",
-                            E $"value.{fname}",
-                            addToSize (
-                                $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item)"
-                            )
-                        )
+                        E
+                            $"value.{fname} |> List.iter (fun item -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item))"
                     )
                 )
             elif f.Type = FieldDescriptorProto.Types.Type.Bytes then
                 stmts.Add(
                     OtherExpr(
-                        ForEachDoExpr(
-                            "item",
-                            E $"value.{fname}",
-                            addToSize (
-                                $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom(item))"
-                            )
-                        )
+                        E
+                            $"value.{fname} |> List.iter (fun item -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom(item)))"
                     )
                 )
             else
@@ -190,11 +137,8 @@ let generateComputeSizeAST (msg: DescriptorProto) =
                             CompExprBodyExpr(
                                 [ LetOrUseExpr(Value("packedSize", ConstantExpr(Int(0))).toMutable ())
                                   OtherExpr(
-                                      ForEachDoExpr(
-                                          "item",
-                                          E $"value.{fname}",
-                                          E $"packedSize <- packedSize + {itemSizeExpr}"
-                                      )
+                                      E
+                                          $"value.{fname} |> List.iter (fun item -> packedSize <- packedSize + {itemSizeExpr})"
                                   )
                                   OtherExpr(
                                       addToSize (
