@@ -1,0 +1,56 @@
+# FSharp.Grpc
+
+> F# code generator for Protocol Buffers. Generates F# records, enums, discriminated unions, binary/JSON serialization, and gRPC server/client stubs from `.proto` files. Single NuGet package: `FSharp.Grpc.Tools.Codegen`. No runtime library — generated code depends only on `Google.Protobuf` and `Grpc.Core.Api`.
+
+## Docs
+
+- [Messages](https://github.com/excpt/dotnet-fsharp-grpc/blob/main/docs/messages.md): Setup, type mapping, JSON, examples
+- [gRPC Server](https://github.com/excpt/dotnet-fsharp-grpc/blob/main/docs/grpc-server.md): Setup, handler signatures, all streaming patterns, testing
+- [gRPC Client](https://github.com/excpt/dotnet-fsharp-grpc/blob/main/docs/grpc-client.md): Setup, client creation, all streaming patterns
+- [Full documentation for LLMs](https://github.com/excpt/dotnet-fsharp-grpc/blob/main/llms-full.txt): Complete reference in a single file
+
+## Quick start
+
+```bash
+dotnet new console -lang F# -n MyApp && cd MyApp
+dotnet add package FSharp.Grpc.Tools.Codegen
+```
+
+Add `<Protobuf Include="protos/*.proto"/>` to your `.fsproj`, then `dotnet build`.
+
+## Type mapping
+
+| Proto | F# |
+|---|---|
+| Scalar fields | Record fields |
+| `message` fields | `TypeName option` |
+| `optional` scalars | `scalar option` |
+| `repeated` fields | `type list` |
+| `map<K, V>` | `Map<K, V>` |
+| `enum` | F# enum + companion module |
+| `oneof` | Discriminated union `option` |
+| Well-known types | `Google.Protobuf.WellKnownTypes` |
+
+## Generated API per message
+
+| Function | Signature |
+|---|---|
+| `empty` | `T` |
+| `encode` / `decode` | `T -> byte array` / `byte array -> T` |
+| `encodeJson` / `decodeJson` | `T -> string` / `string -> T` |
+| `computeSize` | `T -> int` |
+| `writeTo` / `decodeFrom` | `CodedOutputStream -> T -> unit` / `CodedInputStream -> T` |
+
+## gRPC
+
+Set `GrpcServices="Server"`, `"Client"`, or `"Both"` on `<Protobuf>` items.
+
+**Server**: Handler record + service class registered via `MapGrpcService<T>()`.
+**Client**: Client record + `create`/`fromChannel`/`fromInvoker` factory functions.
+
+All 4 patterns supported: unary, server streaming, client streaming, bidirectional.
+
+## Requirements
+
+- .NET 8.0+
+- Proto3 only

@@ -1,0 +1,525 @@
+# FSharp.Grpc
+
+> F# code generator for Protocol Buffers. Generates F# records, enums, discriminated unions, binary/JSON serialization, and gRPC server/client stubs from `.proto` files. Single NuGet package: `FSharp.Grpc.Tools.Codegen`. No runtime library — generated code depends only on `Google.Protobuf` and `Grpc.Core.Api`.
+
+## Getting started
+
+```bash
+dotnet new console -lang F# -n MyApp
+cd MyApp
+dotnet add package FSharp.Grpc.Tools.Codegen
+```
+
+Add a proto file and register it in your `.fsproj`:
+
+```xml
+<ItemGroup>
+    <Protobuf Include="protos/person.proto"/>
+</ItemGroup>
+```
+
+Build and use:
+
+```bash
+dotnet build
+```
+
+```fsharp
+open Example
+
+let alice = { Person.empty with Name = "Alice"; Age = 30 }
+
+let bytes = Person.encode alice
+let decoded = Person.decode bytes
+
+let json = Person.encodeJson alice
+// {"name":"Alice","age":30}
+```
+
+The code generator runs automatically during build. Generated files appear in `obj/protos/` and are compiled before your code.
+
+---
+
+## Generated API
+
+Every proto message becomes an F# record with a companion module:
+
+| Function | Signature | Description |
+|---|---|---|
+| `empty` | `T` | Zero-value instance for `{ T.empty with ... }` |
+| `encode` | `T -> byte array` | Binary serialization |
+| `decode` | `byte array -> T` | Binary deserialization |
+| `decodeFrom` | `CodedInputStream -> T` | Streaming binary deserialization |
+| `encodeJson` | `T -> string` | JSON serialization |
+| `decodeJson` | `string -> T` | JSON deserialization |
+| `writeJsonTo` | `Utf8JsonWriter -> T -> unit` | Streaming JSON write |
+| `decodeJsonElement` | `JsonElement -> T` | Parse from `JsonElement` |
+| `computeSize` | `T -> int` | Serialized byte size |
+| `writeTo` | `CodedOutputStream -> T -> unit` | Low-level binary write |
+
+Each enum gets a companion module with `toJsonName` / `fromJsonName`.
+
+---
+
+## Type mapping
+
+### Scalars
+
+| Proto type | F# type | Default |
+|---|---|---|
+| `double` | `float` | `0.0` |
+| `float` | `float32` | `0.0f` |
+| `int32`, `sint32`, `sfixed32` | `int` | `0` |
+| `int64`, `sint64`, `sfixed64` | `int64` | `0L` |
+| `uint32`, `fixed32` | `uint32` | `0u` |
+| `uint64`, `fixed64` | `uint64` | `0UL` |
+| `bool` | `bool` | `false` |
+| `string` | `string` | `""` |
+| `bytes` | `byte array` | `Array.empty` |
+
+### Composite types
+
+| Proto type | F# type | Default |
+|---|---|---|
+| `message` field | `TypeName option` | `None` |
+| `optional` scalar | `scalar option` | `None` |
+| `repeated T` | `T list` | `[]` |
+| `map<K, V>` | `Map<K, V>` | `Map.empty` |
+| `enum` | F# enum | `LanguagePrimitives.EnumOfValue 0` |
+| `oneof` group | Discriminated union `option` | `None` |
+
+### Well-known types
+
+| Proto type | F# type |
+|---|---|
+| `google.protobuf.Timestamp` | `Google.Protobuf.WellKnownTypes.Timestamp option` |
+| `google.protobuf.Duration` | `Google.Protobuf.WellKnownTypes.Duration option` |
+| `google.protobuf.Any` | `Google.Protobuf.WellKnownTypes.Any option` |
+| `google.protobuf.StringValue` | `string option` |
+| `google.protobuf.Int32Value` | `int option` |
+| `google.protobuf.BoolValue` | `bool option` |
+| *(other wrappers)* | `scalar option` |
+
+### Naming conventions
+
+| Proto | F# |
+|---|---|
+| `package my.app;` | `namespace My.App` |
+| `message MyMessage` | `type MyMessage = { ... }` |
+| `field_name` | `FieldName` (PascalCase) |
+| `STATUS_ACTIVE` | `StatusActive` (PascalCase) |
+| `oneof method` | `type {Msg}Method = \| ...` (DU) |
+
+---
+
+## Examples
+
+### Enums
+
+```protobuf
+enum Status {
+  STATUS_UNKNOWN  = 0;
+  STATUS_ACTIVE   = 1;
+  STATUS_INACTIVE = 2;
+}
+
+message Account {
+  string name = 1;
+  Status status = 2;
+}
+```
+
+```fsharp
+let account = { Account.empty with Name = "alice"; Status = Status.StatusActive }
+let json = Account.encodeJson account
+// {"name":"alice","status":"STATUS_ACTIVE"}
+```
+
+### Oneof (discriminated unions)
+
+```protobuf
+message Payment {
+  string id = 1;
+  oneof method {
+    string credit_card = 2;
+    string bank_account = 3;
+  }
+}
+```
+
+```fsharp
+let payment =
+    { Payment.empty with
+        Id = "PAY-001"
+        Method = Some (PaymentMethod.CreditCard "4111-1111-1111-1111") }
+
+match payment.Method with
+| None -> printfn "No payment method"
+| Some (PaymentMethod.CreditCard card) -> printfn "Card: %s" card
+| Some (PaymentMethod.BankAccount acct) -> printfn "Bank: %s" acct
+```
+
+### Repeated fields
+
+```protobuf
+message WithRepeated {
+  repeated string tags = 1;
+  repeated int32 scores = 2;
+}
+```
+
+```fsharp
+let data =
+    { WithRepeated.empty with
+        Tags = [ "protobuf"; "fsharp" ]
+        Scores = [ 100; 95; 87 ] }
+```
+
+### Map fields
+
+```protobuf
+message WithMap {
+  map<string, string> labels = 1;
+}
+```
+
+```fsharp
+let data =
+    { WithMap.empty with
+        Labels = Map.ofList [ "env", "prod"; "region", "eu-west-1" ] }
+```
+
+### Nested messages and optional fields
+
+```protobuf
+message Address {
+  string street = 1;
+  string city = 2;
+}
+
+message User {
+  string name = 1;
+  Address home_address = 2;
+  optional string nickname = 3;
+}
+```
+
+```fsharp
+let user =
+    { User.empty with
+        Name = "Alice"
+        HomeAddress = Some { Address.empty with Street = "123 Main St"; City = "Springfield" }
+        Nickname = Some "ally" }
+
+match user.HomeAddress with
+| Some addr -> printfn "%s, %s" addr.Street addr.City
+| None -> printfn "No address"
+```
+
+---
+
+## JSON mapping rules
+
+- **Field names**: camelCase on encode. Both camelCase and snake_case accepted on decode.
+- **Default values**: Fields at their zero value are omitted from JSON output.
+- **int64/uint64**: Serialized as JSON strings (JavaScript precision).
+- **bytes**: Base64-encoded strings.
+- **enum**: Proto string names (e.g. `"STATUS_ACTIVE"`). Integer fallback on decode.
+- **float/double**: NaN and Infinity as `"NaN"`, `"Infinity"`, `"-Infinity"`.
+- **Well-known types**: Timestamp, Duration, Any use `Google.Protobuf.JsonFormatter`/`JsonParser`.
+- **Wrapper types**: Serialized as the unwrapped scalar value.
+
+---
+
+## MSBuild options
+
+### Multiple proto files
+
+```xml
+<ItemGroup>
+    <Protobuf Include="protos/**/*.proto"/>
+</ItemGroup>
+```
+
+### Custom output directory
+
+```xml
+<PropertyGroup>
+    <FSharpGrpc_OutputDir>$(BaseIntermediateOutputPath)generated/</FSharpGrpc_OutputDir>
+</PropertyGroup>
+```
+
+### Custom protoc path
+
+```xml
+<PropertyGroup>
+    <FSharpGrpc_ProtocFullPath>/usr/local/bin/protoc</FSharpGrpc_ProtocFullPath>
+</PropertyGroup>
+```
+
+### CLI usage
+
+```bash
+dotnet grpc-fsharp-codegen [--protoc <path>] [--proto-path <dir>]... [--output-dir <dir>] <file.proto>...
+```
+
+---
+
+## gRPC Server
+
+Generate F# gRPC server stubs from `.proto` service definitions. Handlers are F# functions passed via a record type.
+
+### Setup
+
+```bash
+dotnet add package FSharp.Grpc.Tools.Codegen
+dotnet add package Grpc.AspNetCore.Server
+```
+
+Set `GrpcServices="Server"` on the `<Protobuf>` item:
+
+```xml
+<Protobuf Include="protos/greeter.proto" GrpcServices="Server"/>
+```
+
+### Generated code
+
+For each `service` in the proto, the generator produces:
+
+**Handler record** — one field per RPC method:
+
+```fsharp
+type GreeterHandlers =
+    { SayHello: HelloRequest -> ServerCallContext -> Task<HelloReply> }
+```
+
+**Service class** — wired into ASP.NET Core via `[<BindServiceMethod>]`:
+
+```fsharp
+[<BindServiceMethod(typeof<GreeterService>, "BindService")>]
+type GreeterService(handlers: GreeterHandlers) = ...
+```
+
+### Server example
+
+```fsharp
+open Greeter
+open Microsoft.AspNetCore.Builder
+open Microsoft.Extensions.DependencyInjection
+
+let handlers: GreeterHandlers =
+    { SayHello =
+        fun req ctx ->
+            task { return { HelloReply.empty with Message = $"Hello {req.Name}!" } } }
+
+let builder = WebApplication.CreateBuilder()
+builder.Services.AddGrpc() |> ignore
+builder.Services.AddSingleton(GreeterService(handlers)) |> ignore
+
+let app = builder.Build()
+app.MapGrpcService<GreeterService>() |> ignore
+app.Run()
+```
+
+### Handler signatures
+
+| Pattern | Signature |
+|---|---|
+| Unary | `Request -> ServerCallContext -> Task<Response>` |
+| Server streaming | `Request -> IServerStreamWriter<Response> -> ServerCallContext -> Task` |
+| Client streaming | `IAsyncStreamReader<Request> -> ServerCallContext -> Task<Response>` |
+| Bidi streaming | `IAsyncStreamReader<Request> -> IServerStreamWriter<Response> -> ServerCallContext -> Task` |
+
+### All server RPC patterns
+
+**Unary:**
+
+```fsharp
+SayHello = fun req ctx ->
+    task { return { HelloReply.empty with Message = $"Hello {req.Name}!" } }
+```
+
+**Server streaming:**
+
+```fsharp
+ServerStream = fun req stream ctx ->
+    task {
+        for i in 1..3 do
+            do! stream.WriteAsync({ StreamItem.empty with Value = i })
+    }
+```
+
+**Client streaming:**
+
+```fsharp
+ClientStream = fun stream ctx ->
+    task {
+        let mutable count = 0
+        let mutable total = 0
+        while! stream.MoveNext(CancellationToken.None) do
+            count <- count + 1
+            total <- total + stream.Current.Value
+        return { Summary.empty with Count = count; Total = total }
+    }
+```
+
+**Bidirectional streaming:**
+
+```fsharp
+BidiStream = fun reqStream resStream ctx ->
+    task {
+        while! reqStream.MoveNext(CancellationToken.None) do
+            do! resStream.WriteAsync(
+                { StreamItem.empty with Value = reqStream.Current.Value * 2 })
+    }
+```
+
+### Testing with TestHost
+
+```fsharp
+let startServer (service: 'T when 'T : not struct) = task {
+    let builder = WebApplication.CreateBuilder()
+    builder.WebHost.UseTestServer() |> ignore
+    builder.Services.AddGrpc() |> ignore
+    builder.Services.AddSingleton<'T>(service) |> ignore
+    let app = builder.Build()
+    app.MapGrpcService<'T>() |> ignore
+    do! app.StartAsync()
+
+    let handler = app.GetTestServer().CreateHandler()
+    let channel =
+        GrpcChannel.ForAddress("http://localhost", GrpcChannelOptions(HttpHandler = handler))
+    return (app, channel.CreateCallInvoker())
+}
+```
+
+```fsharp
+[<Fact>]
+let ``unary roundtrip`` () = task {
+    let handlers: GreeterHandlers =
+        { SayHello = fun req ctx ->
+            task { return { HelloReply.empty with Message = $"Hello {req.Name}" } } }
+
+    let! (app, invoker) = startServer (GreeterService(handlers))
+    try
+        let client = GreeterClient.fromInvoker invoker
+        let! reply = client.SayHello { HelloRequest.empty with Name = "World" }
+        reply.Message |> should equal "Hello World"
+    finally
+        app.StopAsync().Wait()
+}
+```
+
+---
+
+## gRPC Client
+
+Generate F# gRPC client stubs from `.proto` service definitions. Each service becomes a record type with factory functions.
+
+### Setup
+
+```bash
+dotnet add package FSharp.Grpc.Tools.Codegen
+dotnet add package Grpc.Net.Client
+```
+
+Set `GrpcServices="Client"` on the `<Protobuf>` item:
+
+```xml
+<Protobuf Include="protos/greeter.proto" GrpcServices="Client"/>
+```
+
+### Generated code
+
+```fsharp
+type GreeterClient =
+    { SayHello: HelloRequest -> Task<HelloReply> }
+
+module GreeterClient =
+    let create (address: string) : GreeterClient = ...
+    let fromChannel (channel: GrpcChannel) : GreeterClient = ...
+    let fromInvoker (invoker: CallInvoker) : GreeterClient = ...
+```
+
+### Creating a client
+
+```fsharp
+// From an address (most common)
+let client = GreeterClient.create "https://localhost:5001"
+
+// From a channel (custom configuration)
+let channel = GrpcChannel.ForAddress("https://localhost:5001", GrpcChannelOptions(...))
+let client = GreeterClient.fromChannel channel
+
+// From a CallInvoker (testing with TestHost)
+let client = GreeterClient.fromInvoker invoker
+```
+
+### Client record field types
+
+| Pattern | Record field type |
+|---|---|
+| Unary | `Request -> Task<Response>` |
+| Server streaming | `Request -> AsyncServerStreamingCall<Response>` |
+| Client streaming | `unit -> AsyncClientStreamingCall<Request, Response>` |
+| Bidi streaming | `unit -> AsyncDuplexStreamingCall<Request, Response>` |
+
+### All client RPC patterns
+
+**Unary:**
+
+```fsharp
+let! reply = client.SayHello { HelloRequest.empty with Name = "World" }
+```
+
+**Server streaming:**
+
+```fsharp
+let call = client.ServerStream { PingRequest.empty with Message = "go" }
+while! call.ResponseStream.MoveNext(CancellationToken.None) do
+    printfn "Got: %d" call.ResponseStream.Current.Value
+```
+
+**Client streaming:**
+
+```fsharp
+let call = client.ClientStream()
+for v in [ 10; 20; 30 ] do
+    do! call.RequestStream.WriteAsync({ StreamItem.empty with Value = v })
+do! call.RequestStream.CompleteAsync()
+let! summary = call.ResponseAsync
+```
+
+**Bidirectional streaming:**
+
+```fsharp
+let call = client.BidiStream()
+for v in [ 1; 2; 3 ] do
+    do! call.RequestStream.WriteAsync({ StreamItem.empty with Value = v })
+do! call.RequestStream.CompleteAsync()
+while! call.ResponseStream.MoveNext(CancellationToken.None) do
+    printfn "Got: %d" call.ResponseStream.Current.Value
+```
+
+---
+
+## GrpcServices metadata
+
+| Value | Messages | Server stubs | Client stubs |
+|---|---|---|---|
+| `None` (default) | Yes | No | No |
+| `Server` | Yes | Yes | No |
+| `Client` | Yes | No | Yes |
+| `Both` | Yes | Yes | Yes |
+
+---
+
+## Wire compatibility
+
+Generated code produces the same wire format as C#, Go, Java, Python, and other protobuf implementations. Tested with 50 cross-language serialization tests and 10 cross-language gRPC tests (F# server + C# client, C# server + F# client).
+
+## Requirements
+
+- .NET 8.0 SDK or later
+- Proto3 only. Proto2 syntax is not supported.
+- `protoc` is resolved automatically from the `Grpc.Tools` NuGet package
