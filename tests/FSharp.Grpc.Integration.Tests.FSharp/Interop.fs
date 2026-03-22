@@ -739,17 +739,19 @@ module UserProfile =
                 + subSize
         | None -> ()
 
-        for item in value.Tags do
+        value.Tags
+        |> List.iter (fun item ->
             size <-
                 size
                 + Google.Protobuf.CodedOutputStream.ComputeTagSize(5)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(item)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(item))
 
         if not (List.isEmpty value.Scores) then
             let mutable packedSize = 0
 
-            for item in value.Scores do
-                packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item)
+            value.Scores
+            |> List.iter (fun item ->
+                packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item))
 
             size <-
                 size
@@ -757,40 +759,43 @@ module UserProfile =
                 + Google.Protobuf.CodedOutputStream.ComputeLengthSize(packedSize)
                 + packedSize
 
-        for item in value.OtherAddresses do
+        value.OtherAddresses
+        |> List.iter (fun item ->
             let subSize = Address.computeSize item
 
             size <-
                 size
                 + Google.Protobuf.CodedOutputStream.ComputeTagSize(7)
                 + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                + subSize
+                + subSize)
 
-        for kvp in value.Metadata do
+        value.Metadata
+        |> Map.iter (fun mapKey mapValue ->
             let entrySize =
                 Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey)
                 + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue)
 
             size <-
                 size
                 + Google.Protobuf.CodedOutputStream.ComputeTagSize(8)
                 + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize)
-                + entrySize
+                + entrySize)
 
-        for kvp in value.Ratings do
+        value.Ratings
+        |> Map.iter (fun mapKey mapValue ->
             let entrySize =
                 Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey)
                 + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
+                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue)
 
             size <-
                 size
                 + Google.Protobuf.CodedOutputStream.ComputeTagSize(9)
                 + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize)
-                + entrySize
+                + entrySize)
 
         match value.Rating with
         | Some v -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(10) + 8
@@ -834,55 +839,59 @@ module UserProfile =
             Address.writeTo output v
         | None -> ()
 
-        for item in value.Tags do
+        value.Tags
+        |> List.iter (fun item ->
             output.WriteTag(5, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(item)
+            output.WriteString(item))
 
         if not (List.isEmpty value.Scores) then
             let mutable packedSize = 0
 
-            for item in value.Scores do
-                packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item)
+            value.Scores
+            |> List.iter (fun item ->
+                packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item))
 
             output.WriteTag(6, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteLength(packedSize)
 
-            for item in value.Scores do
-                output.WriteInt32(item)
+            value.Scores |> List.iter (fun item -> output.WriteInt32(item))
 
-        for item in value.OtherAddresses do
+        value.OtherAddresses
+        |> List.iter (fun item ->
             let subSize = Address.computeSize item
             output.WriteTag(7, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteLength(subSize)
-            Address.writeTo output item
+            Address.writeTo output item)
 
-        for kvp in value.Metadata do
+        value.Metadata
+        |> Map.iter (fun mapKey mapValue ->
             let entrySize =
                 Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey)
                 + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Value)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue)
 
             output.WriteTag(8, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteLength(entrySize)
             output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Key)
+            output.WriteString(mapKey)
             output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Value)
+            output.WriteString(mapValue))
 
-        for kvp in value.Ratings do
+        value.Ratings
+        |> Map.iter (fun mapKey mapValue ->
             let entrySize =
                 Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(kvp.Key)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey)
                 + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(kvp.Value)
+                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue)
 
             output.WriteTag(9, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteLength(entrySize)
             output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(kvp.Key)
+            output.WriteString(mapKey)
             output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
-            output.WriteInt32(kvp.Value)
+            output.WriteInt32(mapValue))
 
         match value.Rating with
         | Some v ->
