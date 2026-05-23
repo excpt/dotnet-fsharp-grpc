@@ -9,10 +9,16 @@ module Person =
         let mutable size = 0
 
         if value.Name <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
 
         if value.Age <> 0 then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.Age)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.Age)
 
         size
 

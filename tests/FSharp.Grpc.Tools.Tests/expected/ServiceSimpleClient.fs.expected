@@ -9,7 +9,13 @@ type GreeterClient =
 
 module GreeterClient =
     let private sayHelloMethod =
-        Method<HelloRequest, HelloReply>(MethodType.Unary, "greeter.Greeter", "SayHello", Marshaller(System.Func<_, _>(HelloRequest.encode), System.Func<_, _>(HelloRequest.decode)), Marshaller(System.Func<_, _>(HelloReply.encode), System.Func<_, _>(HelloReply.decode)))
+        Method<HelloRequest, HelloReply>(
+            MethodType.Unary,
+            "greeter.Greeter",
+            "SayHello",
+            Marshaller(System.Func<_, _>(HelloRequest.encode), System.Func<_, _>(HelloRequest.decode)),
+            Marshaller(System.Func<_, _>(HelloReply.encode), System.Func<_, _>(HelloReply.decode))
+        )
 
     let fromInvoker (invoker: CallInvoker) : GreeterClient =
         { SayHello = fun request -> invoker.AsyncUnaryCall(sayHelloMethod, null, CallOptions(), request).ResponseAsync }

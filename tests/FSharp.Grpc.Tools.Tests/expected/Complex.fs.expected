@@ -19,7 +19,9 @@ module UserStatus =
         | "USER_STATUS_ACTIVE" -> UserStatus.UserStatusActive
         | "USER_STATUS_SUSPENDED" -> UserStatus.UserStatusSuspended
         | _ ->
-            match System.Int32.TryParse(name) with | true, v -> LanguagePrimitives.EnumOfValue v | _ -> LanguagePrimitives.EnumOfValue 0
+            match System.Int32.TryParse(name) with
+            | true, v -> LanguagePrimitives.EnumOfValue v
+            | _ -> LanguagePrimitives.EnumOfValue 0
 
 type Address =
     { Street: string
@@ -38,17 +40,29 @@ module Address =
         let mutable size = 0
 
         if value.Street <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Street)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Street)
 
         if value.City <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.City)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.City)
 
         if value.CountryCode <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.CountryCode)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(3)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.CountryCode)
 
         match value.ZipCode with
         | Some v ->
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(4)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
         | None -> ()
 
         size
@@ -195,7 +209,9 @@ module Organization =
                         | "PRIORITY_LOW" -> Priority.PriorityLow
                         | "PRIORITY_HIGH" -> Priority.PriorityHigh
                         | _ ->
-                            match System.Int32.TryParse(name) with | true, v -> LanguagePrimitives.EnumOfValue v | _ -> LanguagePrimitives.EnumOfValue 0
+                            match System.Int32.TryParse(name) with
+                            | true, v -> LanguagePrimitives.EnumOfValue v
+                            | _ -> LanguagePrimitives.EnumOfValue 0
 
             let empty =
                 { Name = ""
@@ -206,12 +222,26 @@ module Organization =
                 let mutable size = 0
 
                 if value.Name <> "" then
-                    size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+                    size <-
+                        size
+                        + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                        + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
 
-                value.Members |> List.iter (fun item -> let subSize = User.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)
+                value.Members
+                |> List.iter (fun item ->
+                    let subSize = User.computeSize item in
+
+                    size <-
+                        size
+                        + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                        + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                        + subSize)
 
                 if int value.Priority <> 0 then
-                    size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Priority)
+                    size <-
+                        size
+                        + Google.Protobuf.CodedOutputStream.ComputeTagSize(3)
+                        + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Priority)
 
                 size
 
@@ -220,7 +250,12 @@ module Organization =
                     output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
                     output.WriteString(value.Name)
 
-                value.Members |> List.iter (fun item -> let subSize = User.computeSize item in output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(subSize); User.writeTo output item)
+                value.Members
+                |> List.iter (fun item ->
+                    let subSize = User.computeSize item in
+                    output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                    output.WriteLength(subSize)
+                    User.writeTo output item)
 
                 if int value.Priority <> 0 then
                     output.WriteTag(3, Google.Protobuf.WireFormat.WireType.Varint)
@@ -302,7 +337,12 @@ module Organization =
                             _Members <- User.decodeJsonElement item :: _Members
                     | "priority" ->
                         _Priority <-
-                            Types.Priority.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())
+                            Types.Priority.fromJsonName (
+                                if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then
+                                    string (prop.Value.GetInt32())
+                                else
+                                    prop.Value.GetString()
+                            )
                     | _ -> ()
 
                 { Name = _Name
@@ -324,17 +364,53 @@ module Organization =
         let mutable size = 0
 
         if value.Name <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
 
         match value.BillingAddress with
         | Some v ->
             let subSize = Address.computeSize v
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
-        value.DomainNames |> List.iter (fun item -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item))
-        value.Metadata |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue) in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize)
-        value.Departments |> List.iter (fun item -> let subSize = Types.Department.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)
+        value.DomainNames
+        |> List.iter (fun item ->
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(3)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(item))
+
+        value.Metadata
+        |> Map.iter (fun mapKey mapValue ->
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey)
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue) in
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(4)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize)
+                + entrySize)
+
+        value.Departments
+        |> List.iter (fun item ->
+            let subSize = Types.Department.computeSize item in
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(5)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize)
+
         size
 
     let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Organization) : unit =
@@ -350,9 +426,32 @@ module Organization =
             Address.writeTo output v
         | None -> ()
 
-        value.DomainNames |> List.iter (fun item -> output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(item))
-        value.Metadata |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue) in output.WriteTag(4, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapKey); output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapValue))
-        value.Departments |> List.iter (fun item -> let subSize = Types.Department.computeSize item in output.WriteTag(5, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(subSize); Types.Department.writeTo output item)
+        value.DomainNames
+        |> List.iter (fun item ->
+            output.WriteTag(3, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(item))
+
+        value.Metadata
+        |> Map.iter (fun mapKey mapValue ->
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey)
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapValue) in
+
+            output.WriteTag(4, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(entrySize)
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(mapKey)
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(mapValue))
+
+        value.Departments
+        |> List.iter (fun item ->
+            let subSize = Types.Department.computeSize item in
+            output.WriteTag(5, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Types.Department.writeTo output item)
 
     let encode (value: Organization) : byte array =
         let size = computeSize value
@@ -530,25 +629,63 @@ module User =
         let mutable size = 0
 
         if value.Id <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
 
         if value.DisplayName <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.DisplayName)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.DisplayName)
 
         if value.Email <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Email)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(3)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Email)
 
         if int value.Status <> 0 then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Status)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(4)
+                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Status)
 
         match value.HomeAddress with
         | Some v ->
             let subSize = Address.computeSize v
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(5)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
-        value.OtherAddresses |> List.iter (fun item -> let subSize = Address.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(6) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)
-        value.Scores |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue) in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize) + entrySize)
+        value.OtherAddresses
+        |> List.iter (fun item ->
+            let subSize = Address.computeSize item in
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(6)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize)
+
+        value.Scores
+        |> Map.iter (fun mapKey mapValue ->
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey)
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue) in
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(7)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(entrySize)
+                + entrySize)
 
         match value.Rating with
         | Some v -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(8) + 8
@@ -557,22 +694,38 @@ module User =
         match value.Organization with
         | Some v ->
             let subSize = Organization.computeSize v
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(9) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(9)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         match value.Contact with
         | Some oneofValue ->
             match oneofValue with
             | UserContact.PhoneNumber v ->
-                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(10) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+                size <-
+                    size
+                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(10)
+                    + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
             | UserContact.SlackHandle v ->
-                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(11) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+                size <-
+                    size
+                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(11)
+                    + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
         | None -> ()
 
         match value.Manager with
         | Some v ->
             let subSize = User.computeSize v
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(12) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(12)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         size
@@ -602,8 +755,27 @@ module User =
             Address.writeTo output v
         | None -> ()
 
-        value.OtherAddresses |> List.iter (fun item -> let subSize = Address.computeSize item in output.WriteTag(6, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(subSize); Address.writeTo output item)
-        value.Scores |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey) + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue) in output.WriteTag(7, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(mapKey); output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint); output.WriteInt32(mapValue))
+        value.OtherAddresses
+        |> List.iter (fun item ->
+            let subSize = Address.computeSize item in
+            output.WriteTag(6, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Address.writeTo output item)
+
+        value.Scores
+        |> Map.iter (fun mapKey mapValue ->
+            let entrySize =
+                Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(mapKey)
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(mapValue) in
+
+            output.WriteTag(7, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(entrySize)
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(mapKey)
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.Varint)
+            output.WriteInt32(mapValue))
 
         match value.Rating with
         | Some v ->
@@ -760,7 +932,14 @@ module User =
 
         match value.Rating with
         | Some v ->
-            if System.Double.IsNaN(v) then writer.WriteString("rating", "NaN") elif System.Double.IsPositiveInfinity(v) then writer.WriteString("rating", "Infinity") elif System.Double.IsNegativeInfinity(v) then writer.WriteString("rating", "-Infinity") else writer.WriteNumber("rating", v)
+            if System.Double.IsNaN(v) then
+                writer.WriteString("rating", "NaN")
+            elif System.Double.IsPositiveInfinity(v) then
+                writer.WriteString("rating", "Infinity")
+            elif System.Double.IsNegativeInfinity(v) then
+                writer.WriteString("rating", "-Infinity")
+            else
+                writer.WriteNumber("rating", v)
         | None -> ()
 
         match value.Organization with
@@ -812,7 +991,12 @@ module User =
             | "email" -> _Email <- prop.Value.GetString()
             | "status" ->
                 _Status <-
-                    UserStatus.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())
+                    UserStatus.fromJsonName (
+                        if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then
+                            string (prop.Value.GetInt32())
+                        else
+                            prop.Value.GetString()
+                    )
             | "homeAddress" -> _HomeAddress <- Some(Address.decodeJsonElement prop.Value)
             | "home_address" -> _HomeAddress <- Some(Address.decodeJsonElement prop.Value)
             | "otherAddresses" ->
@@ -826,7 +1010,16 @@ module User =
                     _Scores <- Map.add (entry.Name) (entry.Value.GetInt32()) _Scores
             | "rating" ->
                 _Rating <-
-                    Some(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then (match prop.Value.GetString() with | "NaN" -> System.Double.NaN | "Infinity" -> System.Double.PositiveInfinity | "-Infinity" -> System.Double.NegativeInfinity | s -> float s) else prop.Value.GetDouble())
+                    Some(
+                        if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then
+                            (match prop.Value.GetString() with
+                             | "NaN" -> System.Double.NaN
+                             | "Infinity" -> System.Double.PositiveInfinity
+                             | "-Infinity" -> System.Double.NegativeInfinity
+                             | s -> float s)
+                        else
+                            prop.Value.GetDouble()
+                    )
             | "organization" -> _Organization <- Some(Organization.decodeJsonElement prop.Value)
             | "phoneNumber" -> _Contact <- Some(UserContact.PhoneNumber(prop.Value.GetString()))
             | "phone_number" -> _Contact <- Some(UserContact.PhoneNumber(prop.Value.GetString()))

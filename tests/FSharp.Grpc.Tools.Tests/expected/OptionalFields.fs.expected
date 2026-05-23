@@ -12,12 +12,18 @@ module WithOptional =
 
         match value.Nickname with
         | Some v ->
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
         | None -> ()
 
         match value.Age with
         | Some v ->
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(v)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(v)
         | None -> ()
 
         size

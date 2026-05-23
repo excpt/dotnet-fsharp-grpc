@@ -13,7 +13,10 @@ module Foo =
                 let mutable size = 0
 
                 if value.X <> 0 then
-                    size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.X)
+                    size <-
+                        size
+                        + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                        + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.X)
 
                 size
 
@@ -88,7 +91,12 @@ module Foo =
         match value.LocalRef with
         | Some v ->
             let subSize = Types.Inner.computeSize v
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         size
@@ -179,7 +187,10 @@ module Bar =
                 let mutable size = 0
 
                 if value.Y <> 0 then
-                    size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.Y)
+                    size <-
+                        size
+                        + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                        + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.Y)
 
                 size
 
@@ -254,7 +265,12 @@ module Bar =
         match value.LocalRef with
         | Some v ->
             let subSize = Types.Inner.computeSize v
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         size
