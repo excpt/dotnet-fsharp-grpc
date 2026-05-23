@@ -58,7 +58,7 @@ let private wrapInModule: Set<string> = Set.empty
 /// Snapshots skipped from type-check because of known generator bugs that can't
 /// be worked around with a prelude. The snapshot-equality test still runs, so
 /// regressions in the *current* (buggy) output are still caught.
-let private typeCheckSkip : Map<string, string> = Map.empty
+let private typeCheckSkip: Map<string, string> = Map.empty
 
 let private assertTypeChecks (name: string) (actual: string) =
     match Map.tryFind name typeCheckSkip with
