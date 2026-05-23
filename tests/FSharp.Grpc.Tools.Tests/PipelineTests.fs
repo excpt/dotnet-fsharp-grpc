@@ -30,13 +30,17 @@ let private withTempDir (f: string -> unit) =
 let private writeProto (dir: string) (name: string) (body: string) =
     File.WriteAllText(Path.Combine(dir, name), body.TrimStart('\n'))
 
-let private runPipeline (dir: string) (protos: string list) =
+let private spec (file: string) (services: GrpcServices) : ProtoSpec = { File = file; Services = services }
+
+let private runPipeline (dir: string) (protos: ProtoSpec list) =
     run
         { Protoc = findProtocOrFail ()
           ProtoPaths = [ dir; wktPathOrFail () ]
           OutputDir = dir
-          ProtoFiles = protos
-          GrpcServices = None }
+          Protos = protos }
+
+let private messagesOnly (files: string list) =
+    files |> List.map (fun f -> spec f None)
 
 let private indexOf (manifest: string) (path: string) =
     let i = manifest.IndexOf(path: string)
@@ -73,7 +77,7 @@ import "z.proto";
 message AValue { zpkg.ZValue z = 1; }
 """
 
-        let result = runPipeline dir [ "a.proto"; "z.proto" ]
+        let result = runPipeline dir (messagesOnly [ "a.proto"; "z.proto" ])
         let manifest = File.ReadAllText(result.ManifestPath)
 
         indexOf manifest "z.generated.fs"
@@ -127,7 +131,7 @@ message AuditEntry {
 """
 
         let result =
-            runPipeline dir [ "audit.proto"; "transactions.proto"; "accounts.proto" ]
+            runPipeline dir (messagesOnly [ "audit.proto"; "transactions.proto"; "accounts.proto" ])
 
         let manifest = File.ReadAllText(result.ManifestPath)
         let accountsIdx = indexOf manifest "accounts.generated.fs"
@@ -198,7 +202,7 @@ message Order {
 """
 
         let result =
-            runPipeline dir [ "orders.proto"; "customers.proto"; "products.proto"; "common.proto" ]
+            runPipeline dir (messagesOnly [ "orders.proto"; "customers.proto"; "products.proto"; "common.proto" ])
 
         let manifest = File.ReadAllText(result.ManifestPath)
         let commonIdx = indexOf manifest "common.generated.fs"
@@ -210,3 +214,51 @@ message Order {
         commonIdx |> should be (lessThan productsIdx)
         customersIdx |> should be (lessThan ordersIdx)
         productsIdx |> should be (lessThan ordersIdx))
+
+// ---------------------------------------------------------
+// (4) Mixed per-item GrpcServices in one project
+// ---------------------------------------------------------
+
+[<Fact>]
+let ``per-item GrpcServices emits only requested stubs`` () =
+    // Bounded contexts: this project hosts an Orders server and consumes Inventory as a client.
+    // No cross-imports — independent protos with different stub flavors.
+    withTempDir (fun dir ->
+        writeProto
+            dir
+            "orders.proto"
+            """
+syntax = "proto3";
+package orders;
+message Order { string id = 1; }
+service OrdersApi {
+  rpc Get(Order) returns (Order);
+}
+"""
+
+        writeProto
+            dir
+            "inventory.proto"
+            """
+syntax = "proto3";
+package inventory;
+message Stock { string sku = 1; int32 qty = 2; }
+service InventoryApi {
+  rpc Lookup(Stock) returns (Stock);
+}
+"""
+
+        let result =
+            runPipeline dir [ spec "orders.proto" Server; spec "inventory.proto" Client ]
+
+        let exists name = File.Exists(Path.Combine(dir, name))
+
+        // Orders: messages + server stub, no client stub
+        exists "orders.generated.fs" |> should be True
+        exists "orders.server.generated.fs" |> should be True
+        exists "orders.client.generated.fs" |> should be False
+
+        // Inventory: messages + client stub, no server stub
+        exists "inventory.generated.fs" |> should be True
+        exists "inventory.client.generated.fs" |> should be True
+        exists "inventory.server.generated.fs" |> should be False)

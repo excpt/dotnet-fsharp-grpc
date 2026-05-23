@@ -8,8 +8,8 @@ type private Args =
     { Protoc: string option
       ProtoPaths: string list
       OutputDir: string
-      ProtoFiles: string list
-      GrpcServices: GrpcServices }
+      Positionals: string list
+      DefaultServices: GrpcServices }
 
 let private parseGrpcServices =
     function
@@ -18,13 +18,30 @@ let private parseGrpcServices =
     | "Both" -> Both
     | _ -> None
 
+// Positional args use "<path>|<services>" to attach per-file services.
+// If the suffix is absent or empty, the global --grpc-services default applies.
+// '|' is safe — no platform's path syntax uses it.
+let private parsePositional (defaultServices: GrpcServices) (raw: string) : ProtoSpec =
+    let idx = raw.IndexOf('|')
+
+    if idx < 0 then
+        { File = raw
+          Services = defaultServices }
+    else
+        let file = raw.Substring(0, idx)
+        let svc = raw.Substring(idx + 1)
+
+        let services = if svc = "" then defaultServices else parseGrpcServices svc
+
+        { File = file; Services = services }
+
 let private parseArgs (argv: string array) =
     let mutable args =
         { Protoc = Option.None
           ProtoPaths = []
           OutputDir = "."
-          ProtoFiles = []
-          GrpcServices = None }
+          Positionals = []
+          DefaultServices = None }
 
     let mutable i = 0
 
@@ -47,13 +64,13 @@ let private parseArgs (argv: string array) =
         | "--grpc-services" when i + 1 < argv.Length ->
             args <-
                 { args with
-                    GrpcServices = parseGrpcServices argv.[i + 1] }
+                    DefaultServices = parseGrpcServices argv.[i + 1] }
 
             i <- i + 2
         | arg when not (arg.StartsWith("-")) ->
             args <-
                 { args with
-                    ProtoFiles = args.ProtoFiles @ [ arg ] }
+                    Positionals = args.Positionals @ [ arg ] }
 
             i <- i + 1
         | _ -> i <- i + 1
@@ -64,9 +81,9 @@ let private parseArgs (argv: string array) =
 let main argv =
     let args = parseArgs argv
 
-    if List.isEmpty args.ProtoFiles then
+    if List.isEmpty args.Positionals then
         eprintfn
-            "Usage: grpc-fsharp-codegen [--protoc <path>] [--proto-path <dir>]... [--output-dir <dir>] [--grpc-services None|Server|Client|Both] <file.proto>..."
+            "Usage: grpc-fsharp-codegen [--protoc <path>] [--proto-path <dir>]... [--output-dir <dir>] [--grpc-services None|Server|Client|Both] <file.proto[|Services]>..."
 
         1
     else
@@ -92,21 +109,28 @@ let main argv =
                     else
                         []
 
+            let protos = args.Positionals |> List.map (parsePositional args.DefaultServices)
+
             let protoFileDirs =
-                args.ProtoFiles
-                |> List.map (fun f -> Path.GetFullPath(Path.GetDirectoryName(f)))
+                protos
+                |> List.map (fun s -> Path.GetFullPath(Path.GetDirectoryName(s.File)))
                 |> List.distinct
 
             let allProtoPaths = args.ProtoPaths @ wktPaths @ protoFileDirs |> List.distinct
-            let protoFileNames = args.ProtoFiles |> List.map Path.GetFileName
+
+            // Pipeline resolves files via --proto-path, so strip directory from each spec
+            let protosForPipeline =
+                protos
+                |> List.map (fun s ->
+                    { s with
+                        File = Path.GetFileName(s.File) })
 
             let result =
                 run
                     { Protoc = protoc
                       ProtoPaths = allProtoPaths
                       OutputDir = args.OutputDir
-                      ProtoFiles = protoFileNames
-                      GrpcServices = args.GrpcServices }
+                      Protos = protosForPipeline }
 
             for p in result.MessageFiles @ result.StubFiles do
                 printfn "%s" p

@@ -41,7 +41,7 @@
     </PropertyGroup>
 
     <!-- Generate F# from .proto files (single invocation; codegen writes ordered manifest).
-         All <Protobuf> items must share the same GrpcServices value within a project. -->
+         Each <Protobuf> item carries its own GrpcServices value, encoded as "path|Services". -->
     <Target Name="FSharpGrpc_GenerateProto"
             BeforeTargets="BeforeCompile"
             DependsOnTargets="_FSharpGrpc_ResolveProtoc"
@@ -52,21 +52,12 @@
         <MakeDir Directories="$(FSharpGrpc_OutputDir)"/>
 
         <PropertyGroup>
-            <_FSharpGrpc_DistinctServices>@(Protobuf->'%(GrpcServices)'->Distinct())</_FSharpGrpc_DistinctServices>
-        </PropertyGroup>
-
-        <Error
-            Text="All &lt;Protobuf&gt; items must share the same GrpcServices value, but got: $(_FSharpGrpc_DistinctServices)"
-            Condition="$(_FSharpGrpc_DistinctServices.Contains(';'))"/>
-
-        <PropertyGroup>
             <_FSharpGrpc_ProtocArg Condition="'$(FSharpGrpc_ProtocFullPath)' != ''">--protoc "$(FSharpGrpc_ProtocFullPath)"</_FSharpGrpc_ProtocArg>
             <_FSharpGrpc_WktArg Condition="'$(FSharpGrpc_WktPath)' != ''">--proto-path "$(FSharpGrpc_WktPath)"</_FSharpGrpc_WktArg>
-            <_FSharpGrpc_GrpcServicesArg Condition="'$(_FSharpGrpc_DistinctServices)' != ''">--grpc-services $(_FSharpGrpc_DistinctServices)</_FSharpGrpc_GrpcServicesArg>
-            <_FSharpGrpc_ProtoFiles>@(Protobuf->'&quot;%(FullPath)&quot;', ' ')</_FSharpGrpc_ProtoFiles>
+            <_FSharpGrpc_ProtoFiles>@(Protobuf->'&quot;%(FullPath)|%(GrpcServices)&quot;', ' ')</_FSharpGrpc_ProtoFiles>
         </PropertyGroup>
 
-        <Exec Command="dotnet &quot;$(_FSharpGrpc_CodegenDll)&quot; $(_FSharpGrpc_ProtocArg) $(_FSharpGrpc_WktArg) $(_FSharpGrpc_GrpcServicesArg) --output-dir &quot;$(FSharpGrpc_OutputDir)&quot; $(_FSharpGrpc_ProtoFiles)"
+        <Exec Command="dotnet &quot;$(_FSharpGrpc_CodegenDll)&quot; $(_FSharpGrpc_ProtocArg) $(_FSharpGrpc_WktArg) --output-dir &quot;$(FSharpGrpc_OutputDir)&quot; $(_FSharpGrpc_ProtoFiles)"
               StandardOutputImportance="low"/>
     </Target>
 
