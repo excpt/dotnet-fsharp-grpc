@@ -13,12 +13,14 @@ type GrpcServices =
     | Client
     | Both
 
+type ProtoSpec =
+    { File: string; Services: GrpcServices }
+
 type Options =
     { Protoc: string
       ProtoPaths: string list
       OutputDir: string
-      ProtoFiles: string list
-      GrpcServices: GrpcServices }
+      Protos: ProtoSpec list }
 
 type Result =
     { MessageFiles: string list
@@ -70,25 +72,34 @@ let private writeManifest (outputDir: string) (orderedPaths: string list) =
     manifestPath
 
 let run (opts: Options) : Result =
-    match runProtoc opts.Protoc opts.ProtoPaths opts.ProtoFiles with
+    let protoFiles = opts.Protos |> List.map (fun s -> s.File)
+
+    match runProtoc opts.Protoc opts.ProtoPaths protoFiles with
     | Error msg -> failwith msg
     | Ok descriptorSet ->
         Directory.CreateDirectory(opts.OutputDir) |> ignore
-        let inputNames = opts.ProtoFiles |> List.map Path.GetFileName |> Set.ofList
+
+        let servicesByName =
+            opts.Protos
+            |> List.map (fun s -> Path.GetFileName s.File, s.Services)
+            |> Map.ofList
+
         let messages = ResizeArray<string>()
         let stubs = ResizeArray<string>()
 
         // protoc emits descriptor files in topological order (deps before dependents)
         for file in descriptorSet.File do
-            if inputNames |> Set.contains file.Name then
+            match Map.tryFind file.Name servicesByName with
+            | Option.None -> ()
+            | Some services ->
                 let baseName = Path.GetFileNameWithoutExtension(file.Name)
 
                 let msgPath = Path.Combine(opts.OutputDir, baseName + ".generated.fs")
                 File.WriteAllText(msgPath, file |> generate |> Gen.mkOak |> Gen.run)
                 messages.Add(msgPath)
 
-                let wantsServer = opts.GrpcServices = Server || opts.GrpcServices = Both
-                let wantsClient = opts.GrpcServices = Client || opts.GrpcServices = Both
+                let wantsServer = services = Server || services = Both
+                let wantsClient = services = Client || services = Both
 
                 if wantsServer && file.Service.Count > 0 then
                     let p = Path.Combine(opts.OutputDir, baseName + ".server.generated.fs")
