@@ -163,8 +163,14 @@ let generate (file: FileDescriptorProto) : WidgetBuilder<Oak> =
             }
         }
     | None ->
+        // No proto `package` — default the F# wrapper to a namespace named
+        // after the proto file (e.g. `no_package.proto` -> `namespace NoPackage`).
+        // F# library files must begin with `namespace` or `module`; an
+        // AnonymousModule isn't valid library code.
+        let ns = System.IO.Path.GetFileNameWithoutExtension(file.Name) |> toPascalCase
+
         Oak() {
-            AnonymousModule() {
+            Namespace(ns) {
                 for t in allTypes do
                     match t with
                     | EnumDef e -> e
