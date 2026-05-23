@@ -1,48 +1,8 @@
 module FSharp.Grpc.Tools.Codegen.Program
 
-open System
-open System.Diagnostics
 open System.IO
-open Google.Protobuf.Reflection
-open FSharp.Grpc.Tools.ProtoToAst
 open FSharp.Grpc.Tools.ProtocResolver
-open FSharp.Grpc.Tools.ServiceGen
-open Fabulous.AST
-
-/// Compile .proto files to a FileDescriptorSet using protoc.
-let private compileProtos (protocPath: string) (protoPaths: string list) (protoFiles: string list) =
-    let tmpDescriptor = Path.GetTempFileName()
-
-    try
-        let protoPathArgs =
-            protoPaths |> List.map (fun p -> $"--proto_path=\"{p}\"") |> String.concat " "
-
-        let fileArgs = protoFiles |> List.map (fun f -> $"\"{f}\"") |> String.concat " "
-
-        let psi = ProcessStartInfo(protocPath)
-        psi.Arguments <- $"--descriptor_set_out=\"{tmpDescriptor}\" --include_imports {protoPathArgs} {fileArgs}"
-        psi.RedirectStandardError <- true
-        psi.UseShellExecute <- false
-
-        use proc = Process.Start(psi)
-        let stderr = proc.StandardError.ReadToEnd()
-        proc.WaitForExit()
-
-        if proc.ExitCode <> 0 then
-            eprintfn "protoc failed (exit %d): %s" proc.ExitCode stderr
-            None
-        else
-            let bytes = File.ReadAllBytes(tmpDescriptor)
-            Some(FileDescriptorSet.Parser.ParseFrom(bytes))
-    finally
-        if File.Exists tmpDescriptor then
-            File.Delete tmpDescriptor
-
-type GrpcServices =
-    | None
-    | Server
-    | Client
-    | Both
+open FSharp.Grpc.Tools.Pipeline
 
 type private Args =
     { Protoc: string option
@@ -110,7 +70,6 @@ let main argv =
 
         1
     else
-        // Resolve protoc
         let protocPath =
             match args.Protoc with
             | Some p -> Some p
@@ -121,13 +80,10 @@ let main argv =
             eprintfn "Could not find protoc. Install Grpc.Tools NuGet or pass --protoc <path>."
             1
         | Some protoc ->
-
-            // Build proto paths: user-provided + WKT + proto file directories
             let wktPaths =
                 match findWellKnownTypesPath () with
                 | Some p -> [ p ]
                 | Option.None ->
-                    // Try deriving WKT path from protoc location
                     let protocDir = Path.GetDirectoryName(protoc)
                     let candidate = Path.Combine(protocDir, "..", "..", "build", "native", "include")
 
@@ -142,48 +98,18 @@ let main argv =
                 |> List.distinct
 
             let allProtoPaths = args.ProtoPaths @ wktPaths @ protoFileDirs |> List.distinct
+            let protoFileNames = args.ProtoFiles |> List.map Path.GetFileName
 
-            // Resolve proto file paths relative to proto paths
-            let protoFileNames = args.ProtoFiles |> List.map (fun f -> Path.GetFileName(f))
+            let result =
+                run
+                    { Protoc = protoc
+                      ProtoPaths = allProtoPaths
+                      OutputDir = args.OutputDir
+                      ProtoFiles = protoFileNames
+                      GrpcServices = args.GrpcServices }
 
-            // Ensure output dir exists
-            Directory.CreateDirectory(args.OutputDir) |> ignore
+            for p in result.MessageFiles @ result.StubFiles do
+                printfn "%s" p
 
-            // Compile and generate
-            match compileProtos protoc allProtoPaths protoFileNames with
-            | Option.None -> 1
-            | Some descriptorSet ->
-                let inputNames = args.ProtoFiles |> List.map Path.GetFileName |> Set.ofList
-
-                for file in descriptorSet.File do
-                    // Only generate for the requested files, not their imports
-                    if inputNames |> Set.contains file.Name then
-                        // Always generate messages
-                        let code = file |> generate |> Gen.mkOak |> Gen.run
-                        let baseName = Path.GetFileNameWithoutExtension(file.Name)
-                        let outputPath = Path.Combine(args.OutputDir, baseName + ".generated.fs")
-                        File.WriteAllText(outputPath, code)
-                        // Print to stdout for MSBuild to capture
-                        printfn "%s" outputPath
-
-                        // Conditionally generate server stubs
-                        if
-                            (args.GrpcServices = Server || args.GrpcServices = Both)
-                            && file.Service.Count > 0
-                        then
-                            let serverCode = generateServer file |> Gen.mkOak |> Gen.run
-                            let serverPath = Path.Combine(args.OutputDir, baseName + ".server.generated.fs")
-                            File.WriteAllText(serverPath, serverCode)
-                            printfn "%s" serverPath
-
-                        // Conditionally generate client stubs
-                        if
-                            (args.GrpcServices = Client || args.GrpcServices = Both)
-                            && file.Service.Count > 0
-                        then
-                            let clientCode = generateClient file |> Gen.mkOak |> Gen.run
-                            let clientPath = Path.Combine(args.OutputDir, baseName + ".client.generated.fs")
-                            File.WriteAllText(clientPath, clientCode)
-                            printfn "%s" clientPath
-
-                0
+            printfn "%s" result.ManifestPath
+            0
