@@ -74,7 +74,4 @@ let typeCheck (sourceName: string) (source: string) : string option =
             |> String.concat "\n"
             |> Some
     finally
-        try
-            Directory.Delete(tmpDir, true)
-        with _ ->
-            ()
+        Directory.Delete(tmpDir, true)
