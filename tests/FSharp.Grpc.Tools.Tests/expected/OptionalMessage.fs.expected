@@ -9,10 +9,7 @@ module Inner =
         let mutable size = 0
 
         if value.Label <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Label)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Label)
 
         size
 
@@ -88,20 +85,12 @@ module WithOptionalMessage =
         let mutable size = 0
 
         if value.Id <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
 
         match value.Inner with
         | Some v ->
             let subSize = Inner.computeSize v
-
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                + subSize
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
         size

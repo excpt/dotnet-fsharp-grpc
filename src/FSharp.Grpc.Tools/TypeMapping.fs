@@ -22,6 +22,40 @@ let simpleTypeName (typeName: string) =
     | -1 -> typeName
     | i -> typeName.[i + 1 ..]
 
+/// Split a fully-qualified proto type name into its type segments,
+/// dropping the leading dot and the package portion (lowercase-starting parts).
+/// E.g. ".example.users.User" -> [| "User" |];
+///      ".pkg.Outer.Inner" -> [| "Outer"; "Inner" |].
+let private typeSegments (typeName: string) =
+    typeName.TrimStart('.').Split('.')
+    |> Array.skipWhile (fun p -> p.Length > 0 && System.Char.IsLower p.[0])
+
+/// Build the F# namespace-relative path for a proto type, inserting `Types`
+/// between nesting levels so nested types live under `Parent.Types.Inner`
+/// (mirrors C# protobuf codegen). E.g. ".pkg.Outer.Inner" -> "Outer.Types.Inner",
+/// ".pkg.User" -> "User", ".pkg.A.B.C" -> "A.Types.B.Types.C".
+let typePath (typeName: string) =
+    typeSegments typeName |> String.concat ".Types."
+
+/// Build the reference path the generator should emit for a type, choosing
+/// between a relative (`Types.X` from inside the parent's module) and an
+/// absolute (`typePath`) form based on whether the target is nested inside
+/// the message we're currently generating code for.
+///
+/// E.g. with currentMsgFqn ".pkg.Outer":
+///   ".pkg.Outer.Inner" -> "Types.Inner"        (relative; in scope inside Outer)
+///   ".pkg.Outer.Inner.Deep" -> "Types.Inner.Types.Deep"
+///   ".pkg.User" -> "User"                       (absolute; cross-message)
+///   ".pkg.Org.Dept" -> "Org.Types.Dept"         (absolute; cross-message nested)
+let qualifiedRef (currentMsgFqn: string) (targetTypeName: string) =
+    let prefix = currentMsgFqn + "."
+
+    if targetTypeName.StartsWith(prefix) then
+        let rest = targetTypeName.Substring(prefix.Length)
+        "Types." + (rest.Split('.') |> String.concat ".Types.")
+    else
+        typePath targetTypeName
+
 /// Check if a nested type is a synthetic map entry.
 let isMapEntry (nested: DescriptorProto) =
     not (isNull nested.Options) && nested.Options.MapEntry
@@ -79,14 +113,14 @@ let baseTypeName (field: FieldDescriptorProto) =
     | FieldDescriptorProto.Types.Type.Bool -> "bool"
     | FieldDescriptorProto.Types.Type.String -> "string"
     | FieldDescriptorProto.Types.Type.Bytes -> "byte array"
-    | FieldDescriptorProto.Types.Type.Enum -> simpleTypeName field.TypeName
+    | FieldDescriptorProto.Types.Type.Enum -> typePath field.TypeName
     | FieldDescriptorProto.Types.Type.Message ->
         match Map.tryFind field.TypeName wellKnownTypeMap with
         | Some t -> t
         | None ->
             match Map.tryFind field.TypeName wrapperTypeMap with
             | Some t -> t
-            | None -> simpleTypeName field.TypeName
+            | None -> typePath field.TypeName
     | _ -> "obj"
 
 /// Resolve the full F# type for a field, accounting for repeated, map, optional, and message option.

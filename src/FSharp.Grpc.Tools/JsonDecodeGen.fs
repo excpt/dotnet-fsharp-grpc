@@ -9,7 +9,7 @@ open FSharp.Grpc.Tools.WireFormat
 open FSharp.Grpc.Tools.DecodeGen
 
 /// JSON read expression for a scalar value from a JsonElement.
-let private jsonReadExpr (elemExpr: string) (f: FieldDescriptorProto) =
+let private jsonReadExpr (currentMsgFqn: string) (elemExpr: string) (f: FieldDescriptorProto) =
     match f.Type with
     | FieldDescriptorProto.Types.Type.String -> $"{elemExpr}.GetString()"
     | FieldDescriptorProto.Types.Type.Bool -> $"{elemExpr}.GetBoolean()"
@@ -31,7 +31,7 @@ let private jsonReadExpr (elemExpr: string) (f: FieldDescriptorProto) =
         $"if {elemExpr}.ValueKind = System.Text.Json.JsonValueKind.String then (match {elemExpr}.GetString() with | \"NaN\" -> System.Single.NaN | \"Infinity\" -> System.Single.PositiveInfinity | \"-Infinity\" -> System.Single.NegativeInfinity | s -> float32 s) else float32 ({elemExpr}.GetDouble())"
     | FieldDescriptorProto.Types.Type.Bytes -> $"System.Convert.FromBase64String({elemExpr}.GetString())"
     | FieldDescriptorProto.Types.Type.Enum ->
-        $"{simpleTypeName f.TypeName}.fromJsonName(if {elemExpr}.ValueKind = System.Text.Json.JsonValueKind.Number then string ({elemExpr}.GetInt32()) else {elemExpr}.GetString())"
+        $"{qualifiedRef currentMsgFqn f.TypeName}.fromJsonName(if {elemExpr}.ValueKind = System.Text.Json.JsonValueKind.Number then string ({elemExpr}.GetInt32()) else {elemExpr}.GetString())"
     | _ -> $"{elemExpr}.GetInt32()"
 
 /// Parse expression for map keys from string.
@@ -52,7 +52,7 @@ let private jsonParseKeyExpr (keyField: FieldDescriptorProto) (keyExpr: string) 
     | _ -> keyExpr
 
 /// Generate decodeJsonElement function as AST widget.
-let generateDecodeJsonElementAST (msg: DescriptorProto) =
+let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) =
     let mutable emittedOneofs = Set.empty
     let fieldVars = ResizeArray<FieldVar>()
     let clauses = ResizeArray<WidgetBuilder<MatchClauseNode>>()
@@ -89,7 +89,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
 
                     for pat in patterns do
                         if c.Type = FieldDescriptorProto.Types.Type.Message then
-                            let msgTypeName = simpleTypeName c.TypeName
+                            let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
 
                             match Map.tryFind c.TypeName wellKnownTypeMap with
                             | Some wktType ->
@@ -142,7 +142,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                                         )
                                     )
                         else
-                            let readExpr = jsonReadExpr "prop.Value" c
+                            let readExpr = jsonReadExpr currentMsgFqn "prop.Value" c
 
                             clauses.Add(
                                 MatchClauseExpr(
@@ -166,7 +166,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
 
             for pat in patterns do
                 if valueField.Type = FieldDescriptorProto.Types.Type.Message then
-                    let msgTypeName = simpleTypeName valueField.TypeName
+                    let msgTypeName = qualifiedRef currentMsgFqn valueField.TypeName
 
                     match Map.tryFind valueField.TypeName wellKnownTypeMap with
                     | Some wktType ->
@@ -196,7 +196,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                             )
                         )
                 else
-                    let readExpr = jsonReadExpr "entry.Value" valueField
+                    let readExpr = jsonReadExpr currentMsgFqn "entry.Value" valueField
 
                     clauses.Add(
                         MatchClauseExpr(
@@ -219,7 +219,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
 
             for pat in patterns do
                 if f.Type = FieldDescriptorProto.Types.Type.Message then
-                    let msgTypeName = simpleTypeName f.TypeName
+                    let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
                     match Map.tryFind f.TypeName wellKnownTypeMap with
                     | Some wktType ->
@@ -246,7 +246,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                             )
                         )
                 else
-                    let readExpr = jsonReadExpr "item" f
+                    let readExpr = jsonReadExpr currentMsgFqn "item" f
 
                     clauses.Add(
                         MatchClauseExpr(
@@ -269,7 +269,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
 
             for pat in patterns do
                 if f.Type = FieldDescriptorProto.Types.Type.Message then
-                    let msgTypeName = simpleTypeName f.TypeName
+                    let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
                     match Map.tryFind f.TypeName wellKnownTypeMap with
                     | Some wktType ->
@@ -291,7 +291,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                             )
                         )
                 else
-                    let readExpr = jsonReadExpr "prop.Value" f
+                    let readExpr = jsonReadExpr currentMsgFqn "prop.Value" f
 
                     clauses.Add(
                         MatchClauseExpr(
@@ -308,7 +308,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                 else
                     [ jsonName ]
 
-            let msgTypeName = simpleTypeName f.TypeName
+            let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
             for pat in patterns do
                 match Map.tryFind f.TypeName wellKnownTypeMap with
@@ -354,7 +354,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                             )
                         )
         else
-            fieldVars.Add(MutableScalar(fname, $"_{fname}", fieldDefault f))
+            fieldVars.Add(MutableScalar(fname, $"_{fname}", fieldDefault currentMsgFqn f))
 
             let patterns =
                 if jsonName <> f.Name then
@@ -362,7 +362,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                 else
                     [ jsonName ]
 
-            let readExpr = jsonReadExpr "prop.Value" f
+            let readExpr = jsonReadExpr currentMsgFqn "prop.Value" f
 
             for pat in patterns do
                 clauses.Add(

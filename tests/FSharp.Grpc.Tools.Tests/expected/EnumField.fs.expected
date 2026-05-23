@@ -19,9 +19,7 @@ module Status =
         | "STATUS_ACTIVE" -> Status.StatusActive
         | "STATUS_INACTIVE" -> Status.StatusInactive
         | _ ->
-            match System.Int32.TryParse(name) with
-            | true, v -> LanguagePrimitives.EnumOfValue v
-            | _ -> LanguagePrimitives.EnumOfValue 0
+            match System.Int32.TryParse(name) with | true, v -> LanguagePrimitives.EnumOfValue v | _ -> LanguagePrimitives.EnumOfValue 0
 
 type Account = { Name: string; Status: Status }
 
@@ -34,16 +32,10 @@ module Account =
         let mutable size = 0
 
         if value.Name <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
 
         if int value.Status <> 0 then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Status)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int value.Status)
 
         size
 
@@ -114,12 +106,7 @@ module Account =
             | "name" -> _Name <- prop.Value.GetString()
             | "status" ->
                 _Status <-
-                    Status.fromJsonName (
-                        if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then
-                            string (prop.Value.GetInt32())
-                        else
-                            prop.Value.GetString()
-                    )
+                    Status.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())
             | _ -> ()
 
         { Name = _Name; Status = _Status }

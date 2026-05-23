@@ -17,22 +17,12 @@ module WkOneof =
             match oneofValue with
             | WkOneofEvent.OccurredAt v ->
                 let subSize = v.CalculateSize()
-
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                    + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                    + subSize
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
             | WkOneofEvent.Note v ->
                 let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
                 wrapper.Value <- v
                 let subSize = wrapper.CalculateSize()
-
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                    + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                    + subSize
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
         size
@@ -121,22 +111,10 @@ module WkOneof =
             match prop.Name with
             | "occurredAt" ->
                 _Event <-
-                    Some(
-                        WkOneofEvent.OccurredAt(
-                            Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(
-                                prop.Value.GetRawText()
-                            )
-                        )
-                    )
+                    Some(WkOneofEvent.OccurredAt(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(prop.Value.GetRawText())))
             | "occurred_at" ->
                 _Event <-
-                    Some(
-                        WkOneofEvent.OccurredAt(
-                            Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(
-                                prop.Value.GetRawText()
-                            )
-                        )
-                    )
+                    Some(WkOneofEvent.OccurredAt(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(prop.Value.GetRawText())))
             | "note" -> _Event <- Some(WkOneofEvent.Note(prop.Value.GetString()))
             | _ -> ()
 

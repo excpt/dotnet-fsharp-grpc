@@ -15,10 +15,7 @@ module Outer =
                 let mutable size = 0
 
                 if value.Value <> "" then
-                    size <-
-                        size
-                        + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                        + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Value)
+                    size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Value)
 
                 size
 
@@ -91,20 +88,12 @@ module Outer =
         let mutable size = 0
 
         if value.Name <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
 
         match value.Inner with
         | Some v ->
             let subSize = Types.Inner.computeSize v
-
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                + subSize
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
         size

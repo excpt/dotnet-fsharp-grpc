@@ -8,7 +8,7 @@ open FSharp.Grpc.Tools.TypeMapping
 open FSharp.Grpc.Tools.WireFormat
 
 /// Generate writeTo function as AST widget.
-let generateWriteToAST (msg: DescriptorProto) =
+let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
     let mutable emittedOneofs = Set.empty
     let stmts = ResizeArray<WidgetBuilder<ComputationExpressionStatement>>()
     let mutable hasBody = false
@@ -42,7 +42,7 @@ let generateWriteToAST (msg: DescriptorProto) =
                         let caseWt = wireType c
 
                         if c.Type = FieldDescriptorProto.Types.Type.Message then
-                            let msgTypeName = simpleTypeName c.TypeName
+                            let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
 
                             let body =
                                 match Map.tryFind c.TypeName wellKnownTypeMap with
@@ -123,7 +123,7 @@ let generateWriteToAST (msg: DescriptorProto) =
             let keySizeExpr = computeSizeExpr "mapKey" keyField
 
             if valueField.Type = FieldDescriptorProto.Types.Type.Message then
-                let msgTypeName = simpleTypeName valueField.TypeName
+                let msgTypeName = qualifiedRef currentMsgFqn valueField.TypeName
 
                 stmts.Add(
                     OtherExpr(
@@ -144,7 +144,7 @@ let generateWriteToAST (msg: DescriptorProto) =
                 )
         elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
             if f.Type = FieldDescriptorProto.Types.Type.Message then
-                let msgTypeName = simpleTypeName f.TypeName
+                let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
                 stmts.Add(
                     OtherExpr(
@@ -190,7 +190,7 @@ let generateWriteToAST (msg: DescriptorProto) =
                 )
         elif f.Proto3Optional then
             if f.Type = FieldDescriptorProto.Types.Type.Message then
-                let msgTypeName = simpleTypeName f.TypeName
+                let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
                 stmts.Add(
                     OtherExpr(
@@ -231,7 +231,7 @@ let generateWriteToAST (msg: DescriptorProto) =
                     )
                 )
         elif f.Type = FieldDescriptorProto.Types.Type.Message then
-            let msgTypeName = simpleTypeName f.TypeName
+            let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
             match Map.tryFind f.TypeName wellKnownTypeMap with
             | Some _ ->

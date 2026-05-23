@@ -61,15 +61,23 @@ let private wrapInModule: Set<string> = Set.empty
 let private typeCheckSkip: Map<string, string> = Map.empty
 
 let private assertTypeChecks (name: string) (actual: string) =
-    match Map.tryFind name typeCheckSkip with
+    // Lookup key strips the optional `_expected` suffix so the spec validation
+    // shares the same prelude/skip/wrap entries as the actual.
+    let lookupKey =
+        if name.EndsWith("_expected") then
+            name.Substring(0, name.Length - "_expected".Length)
+        else
+            name
+
+    match Map.tryFind lookupKey typeCheckSkip with
     | Some _reason -> ()
     | None ->
         let source =
-            match Map.tryFind name typeCheckPrelude with
+            match Map.tryFind lookupKey typeCheckPrelude with
             | Some prelude -> prelude + "\n" + actual
             | None ->
-                if Set.contains name wrapInModule then
-                    $"module {name}\n\n{actual}"
+                if Set.contains lookupKey wrapInModule then
+                    $"module {lookupKey}\n\n{actual}"
                 else
                     actual
 
@@ -81,7 +89,16 @@ let private assertMatchesExpected (name: string) (actual: string) =
     assertValidFSharpSyntax actual
     let path = Path.Combine(expectedDir, $"{name}.fs.expected")
     let expected = File.ReadAllText(path).ReplaceLineEndings("\n")
-    actual.ReplaceLineEndings("\n") |> should equal expected
+    // Validate the spec itself first — catches hand-written specs that are
+    // invalid F# before we even compare against the generator output.
+    assertTypeChecks $"{name}_expected" expected
+    let actualN = actual.ReplaceLineEndings("\n")
+    // TEMP: dump actual to /tmp on mismatch for inspection.
+    if actualN <> expected then
+        let dumpPath = Path.Combine(Path.GetTempPath(), $"{name}.fs.actual")
+        File.WriteAllText(dumpPath, actualN)
+
+    actualN |> should equal expected
     assertTypeChecks name actual
 
 let private protosDir =

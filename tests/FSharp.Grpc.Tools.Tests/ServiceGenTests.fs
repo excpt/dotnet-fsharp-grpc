@@ -24,7 +24,13 @@ let private expectedDir =
 let private assertMatchesExpected (name: string) (actual: string) =
     let path = Path.Combine(expectedDir, $"{name}.fs.expected")
     let expected = File.ReadAllText(path).ReplaceLineEndings("\n")
-    actual.ReplaceLineEndings("\n") |> should equal expected
+    let actualN = actual.ReplaceLineEndings("\n")
+
+    if actualN <> expected then
+        let dumpPath = Path.Combine(Path.GetTempPath(), $"{name}.fs.actual")
+        File.WriteAllText(dumpPath, actualN)
+
+    actualN |> should equal expected
 
 let private protosDir =
     let asmDir =
