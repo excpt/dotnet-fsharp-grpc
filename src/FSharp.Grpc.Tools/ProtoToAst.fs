@@ -138,6 +138,45 @@ let rec private collectMessageTypes (msg: DescriptorProto) =
 
     nestedEnums @ nestedMessages @ messageToTypes msg
 
+/// True if any message in the file references another in-file message that's
+/// declared *after* it in the generator's output order. Such forward refs
+/// require `namespace rec` to compile — without `rec`, F# evaluates
+/// declarations top-down and a later type/module isn't yet in scope.
+///
+/// Order matches `collectMessageTypes`: nested-first, then parent.
+/// Self-references (e.g. `User.manager: User`) don't need `rec` — record
+/// types are inherently self-recursive — so they're filtered out.
+let private needsRecursiveNamespace (file: FileDescriptorProto) : bool =
+    let rec messagesInOrder (msg: DescriptorProto) =
+        seq {
+            for nested in msg.NestedType do
+                if not (isMapEntry nested) then
+                    yield! messagesInOrder nested
+
+            yield msg
+        }
+
+    let ordered = file.MessageType |> Seq.collect messagesInOrder |> Seq.toList
+    let positionByName = ordered |> List.mapi (fun i m -> m.Name, i) |> Map.ofList
+
+    ordered
+    |> List.exists (fun msg ->
+        let myPos = positionByName.[msg.Name]
+
+        msg.Field
+        |> Seq.exists (fun f ->
+            if
+                f.Type = FieldDescriptorProto.Types.Type.Message
+                || f.Type = FieldDescriptorProto.Types.Type.Enum
+            then
+                let target = simpleTypeName f.TypeName
+
+                match Map.tryFind target positionByName with
+                | Some targetPos -> targetPos > myPos
+                | None -> false
+            else
+                false))
+
 /// Converts a FileDescriptorProto into a Fabulous.AST Oak widget
 /// that represents the generated F# source file.
 let generate (file: FileDescriptorProto) : WidgetBuilder<Oak> =
@@ -149,10 +188,11 @@ let generate (file: FileDescriptorProto) : WidgetBuilder<Oak> =
     let messageTypes = file.MessageType |> Seq.collect collectMessageTypes |> Seq.toList
 
     let allTypes = enums @ messageTypes
+    let needsRec = needsRecursiveNamespace file
 
     match toNamespace file.Package with
     | Some ns ->
-        Oak() {
+        let nsBlock =
             Namespace(ns) {
                 for t in allTypes do
                     match t with
@@ -161,7 +201,9 @@ let generate (file: FileDescriptorProto) : WidgetBuilder<Oak> =
                     | UnionDef u -> u
                     | ModuleDef m -> m
             }
-        }
+
+        let nsBlock = if needsRec then nsBlock.toRecursive () else nsBlock
+        Oak() { nsBlock }
     | None ->
         // No proto `package` — default the F# wrapper to a namespace named
         // after the proto file (e.g. `no_package.proto` -> `namespace NoPackage`).
