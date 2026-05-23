@@ -1,0 +1,23 @@
+// Regression for https://github.com/excpt/dotnet-fsharp-grpc/issues/4
+// oneof whose cases are message types crashed codegen with
+// "readMethod called for Message type — messages use length-delimited decoding".
+
+syntax = "proto3";
+package broker;
+
+message FileMetadata {
+  uint64 total_size = 1;
+  string etag = 2;
+}
+
+message FileChunk {
+  bytes data = 1;
+  uint64 offset = 2;
+}
+
+message FileResponse {
+  oneof payload {
+    FileMetadata metadata = 1;
+    FileChunk chunk = 2;
+  }
+}

@@ -100,13 +100,29 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
                                     )
                                 )
                             | None ->
-                                MatchClauseExpr(
-                                    ConstantPat(Constant($"{duName}.{caseName} v")),
-                                    CompExprBodyExpr(
-                                        [ OtherExpr(E $"writer.WritePropertyName(\"{caseJsonName}\")")
-                                          OtherExpr(E $"{msgTypeName}.writeJsonTo writer v") ]
+                                match Map.tryFind c.TypeName wrapperTypeMap with
+                                | Some wrapperScalar ->
+                                    let writeExpr =
+                                        match wrapperScalar with
+                                        | "string" -> $"writer.WriteString(\"{caseJsonName}\", v)"
+                                        | "bool" -> $"writer.WriteBoolean(\"{caseJsonName}\", v)"
+                                        | "float" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
+                                        | "float32" -> $"writer.WriteNumber(\"{caseJsonName}\", float v)"
+                                        | "int64" -> $"writer.WriteString(\"{caseJsonName}\", string v)"
+                                        | "uint64" -> $"writer.WriteString(\"{caseJsonName}\", string v)"
+                                        | "byte array" ->
+                                            $"writer.WriteString(\"{caseJsonName}\", System.Convert.ToBase64String(v))"
+                                        | _ -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
+
+                                    MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), E writeExpr)
+                                | None ->
+                                    MatchClauseExpr(
+                                        ConstantPat(Constant($"{duName}.{caseName} v")),
+                                        CompExprBodyExpr(
+                                            [ OtherExpr(E $"writer.WritePropertyName(\"{caseJsonName}\")")
+                                              OtherExpr(E $"{msgTypeName}.writeJsonTo writer v") ]
+                                        )
                                     )
-                                )
                         else
                             MatchClauseExpr(
                                 ConstantPat(Constant($"{duName}.{caseName} v")),
