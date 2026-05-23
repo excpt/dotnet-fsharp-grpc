@@ -1,0 +1,16 @@
+// Well-known types and wrapper types inside a oneof. The binary gens
+// (decode/writeTo/computeSize) previously had no WKT/wrapper branch and emitted
+// references to non-existent `{Type}.decodeFrom`/`.writeTo`/`.computeSize`.
+
+syntax = "proto3";
+package example;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+message WkOneof {
+  oneof event {
+    google.protobuf.Timestamp occurred_at = 1;
+    google.protobuf.StringValue note = 2;
+  }
+}

@@ -1,0 +1,15 @@
+// proto3 `optional` on a message-typed field sets Proto3Optional = true and
+// assigns the field to a synthetic oneof, routing it through decodeOptionalClause.
+// That clause used to eagerly call readMethod, crashing for Message types.
+
+syntax = "proto3";
+package example;
+
+message Inner {
+  string label = 1;
+}
+
+message WithOptionalMessage {
+  string id = 1;
+  optional Inner inner = 2;
+}

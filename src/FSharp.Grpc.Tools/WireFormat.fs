@@ -63,8 +63,9 @@ let wireType (field: FieldDescriptorProto) =
     | FieldDescriptorProto.Types.Type.Group -> failwith "proto2 groups are not supported"
     | _ -> failwith $"unknown field type: %A{field.Type}"
 
-/// CodedOutputStream write method name for a scalar field.
-let writeMethod (field: FieldDescriptorProto) =
+/// Bare CodedOutputStream write method name for a scalar field.
+/// Internal — call sites should use `writeExpr` which wraps the value correctly.
+let private writeMethodName (field: FieldDescriptorProto) =
     match field.Type with
     | FieldDescriptorProto.Types.Type.Double -> "WriteDouble"
     | FieldDescriptorProto.Types.Type.Float -> "WriteFloat"
@@ -83,12 +84,13 @@ let writeMethod (field: FieldDescriptorProto) =
     | FieldDescriptorProto.Types.Type.Sint32 -> "WriteSInt32"
     | FieldDescriptorProto.Types.Type.Sint64 -> "WriteSInt64"
     | FieldDescriptorProto.Types.Type.Message ->
-        failwith "writeMethod called for Message type — messages use length-delimited encoding"
+        failwith "writeMethodName called for Message type — messages use length-delimited encoding"
     | FieldDescriptorProto.Types.Type.Group -> failwith "proto2 groups are not supported"
     | _ -> failwith $"unknown field type: %A{field.Type}"
 
-/// CodedInputStream read method name for a scalar field.
-let readMethod (field: FieldDescriptorProto) =
+/// Bare CodedInputStream read method name for a scalar field.
+/// Internal — call sites should use `readExpr` which wraps the result correctly.
+let private readMethodName (field: FieldDescriptorProto) =
     match field.Type with
     | FieldDescriptorProto.Types.Type.Double -> "ReadDouble"
     | FieldDescriptorProto.Types.Type.Float -> "ReadFloat"
@@ -107,9 +109,35 @@ let readMethod (field: FieldDescriptorProto) =
     | FieldDescriptorProto.Types.Type.Sint32 -> "ReadSInt32"
     | FieldDescriptorProto.Types.Type.Sint64 -> "ReadSInt64"
     | FieldDescriptorProto.Types.Type.Message ->
-        failwith "readMethod called for Message type — messages use length-delimited decoding"
+        failwith "readMethodName called for Message type — messages use length-delimited decoding"
     | FieldDescriptorProto.Types.Type.Group -> failwith "proto2 groups are not supported"
     | _ -> failwith $"unknown field type: %A{field.Type}"
+
+/// Full write call for a scalar/enum/bytes field: e.g. `output.WriteInt32(int v)`,
+/// `output.WriteBytes(Google.Protobuf.ByteString.CopyFrom(v))`. Callers don't need to
+/// cast enums or wrap bytes — the helper handles type-specific quirks.
+let writeExpr (output: string) (valueExpr: string) (field: FieldDescriptorProto) =
+    let wm = writeMethodName field
+
+    let arg =
+        match field.Type with
+        | FieldDescriptorProto.Types.Type.Enum -> $"int {valueExpr}"
+        | FieldDescriptorProto.Types.Type.Bytes -> $"Google.Protobuf.ByteString.CopyFrom({valueExpr})"
+        | _ -> valueExpr
+
+    $"{output}.{wm}({arg})"
+
+/// Full read expression for a scalar/enum/bytes field, producing the F#-typed value:
+/// e.g. `input.ReadInt32()`, `input.ReadBytes().ToByteArray()`,
+/// `LanguagePrimitives.EnumOfValue(input.ReadInt32())`.
+let readExpr (input: string) (field: FieldDescriptorProto) =
+    let rm = readMethodName field
+    let raw = $"{input}.{rm}()"
+
+    match field.Type with
+    | FieldDescriptorProto.Types.Type.Enum -> $"LanguagePrimitives.EnumOfValue({raw})"
+    | FieldDescriptorProto.Types.Type.Bytes -> $"{raw}.ToByteArray()"
+    | _ -> raw
 
 /// Zero-value check expression for proto3 default value omission.
 let defaultCheckExpr (fieldName: string) (field: FieldDescriptorProto) =
@@ -135,17 +163,11 @@ let defaultCheckExpr (fieldName: string) (field: FieldDescriptorProto) =
     | FieldDescriptorProto.Types.Type.Group -> failwith "proto2 groups are not supported"
     | _ -> failwith $"unknown field type: %A{field.Type}"
 
-/// Value expression for encoding — may need cast for enum.
-let writeValueExpr (fieldName: string) (field: FieldDescriptorProto) =
-    match field.Type with
-    | FieldDescriptorProto.Types.Type.Enum -> $"int value.{fieldName}"
-    | FieldDescriptorProto.Types.Type.Bytes -> $"Google.Protobuf.ByteString.CopyFrom(value.{fieldName})"
-    | _ -> $"value.{fieldName}"
-
 /// Shorthand: create an Expr from a raw code fragment (identifier, member access, method call, etc.)
 let E (s: string) = ConstantExpr(Constant(s))
 
-/// Compute-size expression string for a scalar field value (excluding tag).
+/// Compute-size expression for a scalar field value (excluding tag).
+/// Callers don't need to cast enums or wrap bytes — the helper handles type-specific quirks.
 let computeSizeExpr (valueExpr: string) (field: FieldDescriptorProto) =
     match field.Type with
     | FieldDescriptorProto.Types.Type.Double -> "8"
@@ -164,17 +186,11 @@ let computeSizeExpr (valueExpr: string) (field: FieldDescriptorProto) =
     | FieldDescriptorProto.Types.Type.String -> $"Google.Protobuf.CodedOutputStream.ComputeStringSize({valueExpr})"
     | FieldDescriptorProto.Types.Type.Bytes ->
         $"Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom({valueExpr}))"
-    | FieldDescriptorProto.Types.Type.Enum -> $"Google.Protobuf.CodedOutputStream.ComputeInt32Size({valueExpr})"
+    | FieldDescriptorProto.Types.Type.Enum -> $"Google.Protobuf.CodedOutputStream.ComputeInt32Size(int {valueExpr})"
     | FieldDescriptorProto.Types.Type.Message ->
         failwith "computeSizeExpr called for Message type — messages compute size via nested writeTo"
     | FieldDescriptorProto.Types.Type.Group -> failwith "proto2 groups are not supported"
     | _ -> failwith $"unknown field type: %A{field.Type}"
-
-/// Value expression for compute size — may need cast for enum.
-let computeSizeValueExpr (fieldName: string) (field: FieldDescriptorProto) =
-    match field.Type with
-    | FieldDescriptorProto.Types.Type.Enum -> $"int value.{fieldName}"
-    | _ -> $"value.{fieldName}"
 
 /// size <- size + exprString
 let addToSize (exprString: string) = E $"size <- size + {exprString}"

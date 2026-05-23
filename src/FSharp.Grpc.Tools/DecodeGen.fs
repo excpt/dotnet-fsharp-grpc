@@ -52,33 +52,50 @@ let decodeOneofClauses (msg: DescriptorProto) (idx: int) =
     oneofCases
     |> List.map (fun c ->
         let caseName = toPascalCase c.Name
-        let rm = readMethod c
 
         if c.Type = FieldDescriptorProto.Types.Type.Message then
             let msgTypeName = simpleTypeName c.TypeName
 
-            MatchClauseExpr(
-                ConstantPat(Constant($"{c.Number}")),
-                CompExprBodyExpr(
-                    [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
-                      OtherExpr(
-                          LongIdentSetExpr(
-                              $"_{duFieldName}",
-                              E $"Some({duName}.{caseName}({msgTypeName}.decodeFrom subInput))"
-                          )
-                      ) ]
-                )
-            )
+            let buildExpr =
+                match Map.tryFind c.TypeName wellKnownTypeMap with
+                | Some wktType ->
+                    CompExprBodyExpr(
+                        [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                          LetOrUseExpr(Value("msg", E $"{wktType}()"))
+                          OtherExpr(E "msg.MergeFrom(subInput)")
+                          OtherExpr(LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}(msg))")) ]
+                    )
+                | None ->
+                    match Map.tryFind c.TypeName wrapperTypeMap with
+                    | Some _ ->
+                        let wrapperClassName = simpleTypeName c.TypeName
+
+                        CompExprBodyExpr(
+                            [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                              LetOrUseExpr(Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"))
+                              OtherExpr(E "wrapper.MergeFrom(subInput)")
+                              OtherExpr(
+                                  LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}(wrapper.Value))")
+                              ) ]
+                        )
+                    | None ->
+                        CompExprBodyExpr(
+                            [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                              OtherExpr(
+                                  LongIdentSetExpr(
+                                      $"_{duFieldName}",
+                                      E $"Some({duName}.{caseName}({msgTypeName}.decodeFrom subInput))"
+                                  )
+                              ) ]
+                        )
+
+            MatchClauseExpr(ConstantPat(Constant($"{c.Number}")), buildExpr)
         else
-            let castExpr =
-                if c.Type = FieldDescriptorProto.Types.Type.Enum then
-                    $"LanguagePrimitives.EnumOfValue(input.{rm}())"
-                else
-                    $"input.{rm}()"
+            let readCall = readExpr "input" c
 
             MatchClauseExpr(
                 ConstantPat(Constant($"{c.Number}")),
-                LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}({castExpr}))")
+                LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}({readCall}))")
             ))
 
 /// Generate decode match clause for a map field.
@@ -86,7 +103,6 @@ let decodeMapClause (msg: DescriptorProto) (f: FieldDescriptorProto) (fname: str
     let entry = (tryGetMapEntry msg f).Value
     let keyField = entry.Field.[0]
     let valueField = entry.Field.[1]
-    let keyRm = readMethod keyField
     let keyDefault = scalarDefault keyField
     let valueDefault = scalarDefault valueField
 
@@ -102,27 +118,13 @@ let decodeMapClause (msg: DescriptorProto) (f: FieldDescriptorProto) (fname: str
                 )
             )
         else
-            let valueRm = readMethod valueField
-
-            let valueCast =
-                if valueField.Type = FieldDescriptorProto.Types.Type.Enum then
-                    "LanguagePrimitives.EnumOfValue("
-                else
-                    ""
-
-            let valueCastEnd =
-                if valueField.Type = FieldDescriptorProto.Types.Type.Enum then
-                    ")"
-                else
-                    ""
-
             MatchClauseExpr(
                 ConstantPat(Constant("2")),
-                LongIdentSetExpr("mapValue", E $"{valueCast}entryInput.{valueRm}(){valueCastEnd}")
+                LongIdentSetExpr("mapValue", E(readExpr "entryInput" valueField))
             )
 
     let entryClauses =
-        [ MatchClauseExpr(ConstantPat(Constant("1")), LongIdentSetExpr("key", E $"entryInput.{keyRm}()"))
+        [ MatchClauseExpr(ConstantPat(Constant("1")), LongIdentSetExpr("key", E(readExpr "entryInput" keyField)))
           valueClause
           MatchClauseExpr(ConstantPat(Constant("_")), E "entryInput.SkipLastField()") ]
 
@@ -160,27 +162,16 @@ let decodeRepeatedClause (f: FieldDescriptorProto) (fname: string) (fieldNum: in
                   OtherExpr(E $"_{fname} <- {msgTypeName}.decodeFrom subInput :: _{fname}") ]
             )
         )
-    elif f.Type = FieldDescriptorProto.Types.Type.String then
-        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), E $"_{fname} <- input.ReadString() :: _{fname}")
-    elif f.Type = FieldDescriptorProto.Types.Type.Bytes then
-        MatchClauseExpr(
-            ConstantPat(Constant($"{fieldNum}")),
-            E $"_{fname} <- input.ReadBytes().ToByteArray() :: _{fname}"
-        )
+    elif
+        f.Type = FieldDescriptorProto.Types.Type.String
+        || f.Type = FieldDescriptorProto.Types.Type.Bytes
+    then
+        let readCall = readExpr "input" f
+
+        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), E $"_{fname} <- {readCall} :: _{fname}")
     else
-        let rm = readMethod f
-
-        let castExpr =
-            if f.Type = FieldDescriptorProto.Types.Type.Enum then
-                $"LanguagePrimitives.EnumOfValue(input.{rm}())"
-            else
-                $"input.{rm}()"
-
-        let packedCastExpr =
-            if f.Type = FieldDescriptorProto.Types.Type.Enum then
-                $"LanguagePrimitives.EnumOfValue(packedInput.{rm}())"
-            else
-                $"packedInput.{rm}()"
+        let unpackedRead = readExpr "input" f
+        let packedRead = readExpr "packedInput" f
 
         MatchClauseExpr(
             ConstantPat(Constant($"{fieldNum}")),
@@ -192,39 +183,14 @@ let decodeRepeatedClause (f: FieldDescriptorProto) (fname: string) (fieldNum: in
                           CompExprBodyExpr(
                               [ LetOrUseExpr(Use("packedInput", E "input.ReadBytes().CreateCodedInput()"))
                                 OtherExpr(
-                                    WhileExpr(
-                                        E "not packedInput.IsAtEnd",
-                                        E $"_{fname} <- {packedCastExpr} :: _{fname}"
-                                    )
+                                    WhileExpr(E "not packedInput.IsAtEnd", E $"_{fname} <- {packedRead} :: _{fname}")
                                 ) ]
                           ),
-                          E $"_{fname} <- {castExpr} :: _{fname}"
+                          E $"_{fname} <- {unpackedRead} :: _{fname}"
                       )
                   ) ]
             )
         )
-
-/// Generate decode match clause for a proto3 optional field.
-let decodeOptionalClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
-    let rm = readMethod f
-
-    if f.Type = FieldDescriptorProto.Types.Type.Message then
-        let msgTypeName = simpleTypeName f.TypeName
-
-        MatchClauseExpr(
-            ConstantPat(Constant($"{fieldNum}")),
-            CompExprBodyExpr(
-                [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
-                  OtherExpr(LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decodeFrom subInput)")) ]
-            )
-        )
-    elif f.Type = FieldDescriptorProto.Types.Type.Enum then
-        MatchClauseExpr(
-            ConstantPat(Constant($"{fieldNum}")),
-            LongIdentSetExpr($"_{fname}", E $"Some(LanguagePrimitives.EnumOfValue(input.{rm}()))")
-        )
-    else
-        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), LongIdentSetExpr($"_{fname}", E $"Some(input.{rm}())"))
 
 /// Generate decode match clause for a (non-optional, non-repeated) message field.
 let decodeMessageClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
@@ -264,22 +230,18 @@ let decodeMessageClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int
                 )
             )
 
+/// Generate decode match clause for a proto3 optional field.
+let decodeOptionalClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
+    if f.Type = FieldDescriptorProto.Types.Type.Message then
+        decodeMessageClause f fname fieldNum
+    else
+        let readCall = readExpr "input" f
+
+        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), LongIdentSetExpr($"_{fname}", E $"Some({readCall})"))
+
 /// Generate decode match clause for a plain scalar field.
 let decodeScalarClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
-    let rm = readMethod f
-
-    if f.Type = FieldDescriptorProto.Types.Type.Enum then
-        MatchClauseExpr(
-            ConstantPat(Constant($"{fieldNum}")),
-            LongIdentSetExpr($"_{fname}", E $"LanguagePrimitives.EnumOfValue(input.{rm}())")
-        )
-    elif f.Type = FieldDescriptorProto.Types.Type.Bytes then
-        MatchClauseExpr(
-            ConstantPat(Constant($"{fieldNum}")),
-            LongIdentSetExpr($"_{fname}", E $"input.{rm}().ToByteArray()")
-        )
-    else
-        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), LongIdentSetExpr($"_{fname}", E $"input.{rm}()"))
+    MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), LongIdentSetExpr($"_{fname}", E(readExpr "input" f)))
 
 /// Generate decodeFrom function as AST widget (reads from existing CodedInputStream).
 let generateDecodeFromAST (msg: DescriptorProto) =

@@ -18,6 +18,7 @@
 
         <!-- Code Generation -->
         <PackageVersion Include="Fabulous.AST" Version="1.10.0"/>
+        <PackageVersion Include="FSharp.Compiler.Service" Version="43.12.204"/>
 
         <!-- Core -->
         <PackageVersion Include="FSharp.Core" Version="11.0.100"/>

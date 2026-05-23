@@ -1,0 +1,125 @@
+namespace Example
+
+type WkOneofEvent =
+    | OccurredAt of occurredAt: Google.Protobuf.WellKnownTypes.Timestamp
+    | Note of note: string
+
+type WkOneof = { Event: WkOneofEvent option }
+
+module WkOneof =
+    let empty = { Event = None }
+
+    let computeSize (value: WkOneof) : int =
+        let mutable size = 0
+
+        match value.Event with
+        | Some oneofValue ->
+            match oneofValue with
+            | WkOneofEvent.OccurredAt v ->
+                let subSize = v.CalculateSize()
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+            | WkOneofEvent.Note v ->
+                let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
+                wrapper.Value <- v
+                let subSize = wrapper.CalculateSize()
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: WkOneof) : unit =
+        match value.Event with
+        | Some oneofValue ->
+            match oneofValue with
+            | WkOneofEvent.OccurredAt v ->
+                let subSize = v.CalculateSize()
+                output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                output.WriteLength(subSize)
+                v.WriteTo(output)
+            | WkOneofEvent.Note v ->
+                let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
+                wrapper.Value <- v
+                let subSize = wrapper.CalculateSize()
+                output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                output.WriteLength(subSize)
+                wrapper.WriteTo(output)
+        | None -> ()
+
+    let encode (value: WkOneof) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : WkOneof =
+        let mutable _Event = None
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 ->
+                use subInput = input.ReadBytes().CreateCodedInput()
+                let msg = Google.Protobuf.WellKnownTypes.Timestamp()
+                msg.MergeFrom(subInput)
+                _Event <- Some(WkOneofEvent.OccurredAt(msg))
+            | 2 ->
+                use subInput = input.ReadBytes().CreateCodedInput()
+                let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
+                wrapper.MergeFrom(subInput)
+                _Event <- Some(WkOneofEvent.Note(wrapper.Value))
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Event = _Event }
+
+    let decode (data: byte array) : WkOneof =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WkOneof) : unit =
+        writer.WriteStartObject()
+
+        match value.Event with
+        | Some oneofValue ->
+            match oneofValue with
+            | WkOneofEvent.OccurredAt v ->
+                writer.WritePropertyName("occurredAt")
+                writer.WriteRawValue(Google.Protobuf.JsonFormatter.Default.Format(v))
+            | WkOneofEvent.Note v -> writer.WriteString("note", v)
+        | None -> ()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: WkOneof) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : WkOneof =
+        let mutable _Event = None
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "occurredAt" ->
+                _Event <-
+                    Some(WkOneofEvent.OccurredAt(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(prop.Value.GetRawText())))
+            | "occurred_at" ->
+                _Event <-
+                    Some(WkOneofEvent.OccurredAt(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(prop.Value.GetRawText())))
+            | "note" -> _Event <- Some(WkOneofEvent.Note(prop.Value.GetString()))
+            | _ -> ()
+
+        { Event = _Event }
+
+    let decodeJson (json: string) : WkOneof =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement

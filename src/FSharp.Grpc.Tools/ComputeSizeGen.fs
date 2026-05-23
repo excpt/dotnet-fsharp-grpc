@@ -42,17 +42,48 @@ let generateComputeSizeAST (msg: DescriptorProto) =
                         if c.Type = FieldDescriptorProto.Types.Type.Message then
                             let msgTypeName = simpleTypeName c.TypeName
 
-                            MatchClauseExpr(
-                                ConstantPat(Constant($"{duName}.{caseName} v")),
-                                CompExprBodyExpr(
-                                    [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
-                                      OtherExpr(
-                                          addToSize (
-                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize({caseTag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
-                                          )
-                                      ) ]
-                                )
-                            )
+                            let body =
+                                match Map.tryFind c.TypeName wellKnownTypeMap with
+                                | Some _ ->
+                                    CompExprBodyExpr(
+                                        [ LetOrUseExpr(Value("subSize", E "v.CalculateSize()"))
+                                          OtherExpr(
+                                              addToSize (
+                                                  $"Google.Protobuf.CodedOutputStream.ComputeTagSize({caseTag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
+                                              )
+                                          ) ]
+                                    )
+                                | None ->
+                                    match Map.tryFind c.TypeName wrapperTypeMap with
+                                    | Some _ ->
+                                        let wrapperClassName = simpleTypeName c.TypeName
+
+                                        CompExprBodyExpr(
+                                            [ LetOrUseExpr(
+                                                  Value(
+                                                      "wrapper",
+                                                      E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"
+                                                  )
+                                              )
+                                              OtherExpr(E "wrapper.Value <- v")
+                                              LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
+                                              OtherExpr(
+                                                  addToSize (
+                                                      $"Google.Protobuf.CodedOutputStream.ComputeTagSize({caseTag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
+                                                  )
+                                              ) ]
+                                        )
+                                    | None ->
+                                        CompExprBodyExpr(
+                                            [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
+                                              OtherExpr(
+                                                  addToSize (
+                                                      $"Google.Protobuf.CodedOutputStream.ComputeTagSize({caseTag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
+                                                  )
+                                              ) ]
+                                        )
+
+                            MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), body)
                         else
                             let cse = computeSizeExpr "v" c
 
@@ -89,10 +120,7 @@ let generateComputeSizeAST (msg: DescriptorProto) =
                     )
                 )
             else
-                let valueSizeExpr =
-                    match valueField.Type with
-                    | FieldDescriptorProto.Types.Type.Enum -> computeSizeExpr "int mapValue" valueField
-                    | _ -> computeSizeExpr "mapValue" valueField
+                let valueSizeExpr = computeSizeExpr "mapValue" valueField
 
                 stmts.Add(
                     OtherExpr(
@@ -110,25 +138,21 @@ let generateComputeSizeAST (msg: DescriptorProto) =
                             $"value.{fname} |> List.iter (fun item -> let subSize = {msgTypeName}.computeSize item in size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize)"
                     )
                 )
-            elif f.Type = FieldDescriptorProto.Types.Type.String then
+            elif
+                f.Type = FieldDescriptorProto.Types.Type.String
+                || f.Type = FieldDescriptorProto.Types.Type.Bytes
+            then
+                // Length-delimited per-item — not packed.
+                let itemSizeExpr = computeSizeExpr "item" f
+
                 stmts.Add(
                     OtherExpr(
                         E
-                            $"value.{fname} |> List.iter (fun item -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item))"
-                    )
-                )
-            elif f.Type = FieldDescriptorProto.Types.Type.Bytes then
-                stmts.Add(
-                    OtherExpr(
-                        E
-                            $"value.{fname} |> List.iter (fun item -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom(item)))"
+                            $"value.{fname} |> List.iter (fun item -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + {itemSizeExpr})"
                     )
                 )
             else
-                let itemSizeExpr =
-                    match f.Type with
-                    | FieldDescriptorProto.Types.Type.Enum -> computeSizeExpr "int item" f
-                    | _ -> computeSizeExpr "item" f
+                let itemSizeExpr = computeSizeExpr "item" f
 
                 stmts.Add(
                     OtherExpr(
@@ -264,8 +288,7 @@ let generateComputeSizeAST (msg: DescriptorProto) =
                     )
         else
             let check = defaultCheckExpr fname f
-            let ve = computeSizeValueExpr fname f
-            let cse = computeSizeExpr ve f
+            let cse = computeSizeExpr $"value.{fname}" f
 
             stmts.Add(
                 OtherExpr(

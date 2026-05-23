@@ -29,11 +29,65 @@ let private assertValidFSharpSyntax (code: string) =
     |> Async.RunSynchronously
     |> should be True
 
+/// Snapshots that need extra context to type-check.
+let private typeCheckPrelude =
+    Map.ofList
+        [
+          // imports.proto references shared.Money but the generator emits `Money`
+          // unqualified (it strips the package). Real consumers compile shared's
+          // own generated file alongside, which puts Money in scope. Supply a
+          // stub for isolated type-checking.
+          "Imports",
+          """namespace Billing
+
+type Money = { AmountMicros: int64; Currency: int }
+
+module Money =
+    let computeSize (_: Money) : int = 0
+    let writeTo (_: Google.Protobuf.CodedOutputStream) (_: Money) : unit = ()
+    let decodeFrom (_: Google.Protobuf.CodedInputStream) : Money = { AmountMicros = 0L; Currency = 0 }
+    let writeJsonTo (_: System.Text.Json.Utf8JsonWriter) (_: Money) : unit = ()
+    let decodeJsonElement (_: System.Text.Json.JsonElement) : Money = { AmountMicros = 0L; Currency = 0 }
+""" ]
+
+/// Snapshots whose generated source lacks a top-level namespace/module declaration.
+/// We wrap them in a synthetic module so F#'s library compiler accepts them.
+let private wrapInModule = Set.ofList [ "NoPackage" ]
+
+/// Snapshots intentionally skipped from type-check. Each entry is a known issue
+/// that's tracked separately — the snapshot equality test still runs.
+let private typeCheckSkip =
+    Map.ofList
+        [
+          // Complex.proto has cyclic message refs (User <-> Organization <->
+          // Department.members: User list). Generator emits a flat namespace
+          // without `namespace rec`, so forward refs don't resolve. Separate
+          // issue — orthogonal to oneof handling.
+          "Complex", "cyclic message refs not yet handled by generator (needs `namespace rec`)" ]
+
+let private assertTypeChecks (name: string) (actual: string) =
+    match Map.tryFind name typeCheckSkip with
+    | Some _reason -> ()
+    | None ->
+        let source =
+            match Map.tryFind name typeCheckPrelude with
+            | Some prelude -> prelude + "\n" + actual
+            | None ->
+                if Set.contains name wrapInModule then
+                    $"module {name}\n\n{actual}"
+                else
+                    actual
+
+        match SnapshotTypeCheck.typeCheck name source with
+        | None -> ()
+        | Some errors -> Assert.Fail($"Generated F# for {name}.fs.expected does not type-check:\n{errors}")
+
 let private assertMatchesExpected (name: string) (actual: string) =
     assertValidFSharpSyntax actual
     let path = Path.Combine(expectedDir, $"{name}.fs.expected")
     let expected = File.ReadAllText(path).ReplaceLineEndings("\n")
     actual.ReplaceLineEndings("\n") |> should equal expected
+    assertTypeChecks name actual
 
 let private protosDir =
     let asmDir =
@@ -123,6 +177,19 @@ let ``oneof generates discriminated union and typed record field`` () =
     protoToFSharp "oneof.proto" |> assertMatchesExpected "Oneof"
 
 [<Fact>]
+let ``oneof with message-typed cases generates length-delimited decode (issue #4)`` () =
+    protoToFSharp "oneof_messages.proto" |> assertMatchesExpected "OneofMessages"
+
+[<Fact>]
+let ``oneof with well-known and wrapper types generates correct serialization`` () =
+    protoToFSharp "oneof_wellknown.proto" |> assertMatchesExpected "OneofWellKnown"
+
+[<Fact>]
+let ``proto3 optional message field generates option type`` () =
+    protoToFSharp "optional_message.proto"
+    |> assertMatchesExpected "OptionalMessage"
+
+[<Fact>]
 let ``repeated fields generate list types`` () =
     protoToFSharp "repeated_fields.proto" |> assertMatchesExpected "RepeatedFields"
 
@@ -149,3 +216,36 @@ let ``proto importing another file resolves cross-file types`` () =
 [<Fact>]
 let ``well-known types map to idiomatic F# types`` () =
     protoToFSharp "wellknown.proto" |> assertMatchesExpected "WellKnown"
+
+// ---------------------------------------------------------
+// Sanity check for the type-check helper itself: confirm it
+// rejects code with a deliberate type error. Guards against
+// the helper silently passing everything (which would make
+// the snapshot type-check verification useless).
+// ---------------------------------------------------------
+
+[<Fact>]
+let ``type-check helper rejects code with type errors`` () =
+    let badCode =
+        """namespace Test
+type Foo = { X: int }
+module Foo =
+    let bad: string = 42
+"""
+
+    match SnapshotTypeCheck.typeCheck "TypeErrorSmoke" badCode with
+    | Some _ -> ()
+    | None -> Assert.Fail("type-check helper failed to catch int-to-string assignment")
+
+[<Fact>]
+let ``type-check helper accepts valid code`` () =
+    let goodCode =
+        """namespace Test
+type Foo = { X: int }
+module Foo =
+    let make (v: int) : Foo = { X = v }
+"""
+
+    match SnapshotTypeCheck.typeCheck "TypeOkSmoke" goodCode with
+    | None -> ()
+    | Some errors -> Assert.Fail($"type-check helper rejected valid code:\n{errors}")

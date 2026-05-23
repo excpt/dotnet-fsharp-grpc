@@ -1,10 +1,35 @@
 syntax = "proto3";
 package example;
 
+enum Currency {
+  CURRENCY_UNSPECIFIED = 0;
+  CURRENCY_USD = 1;
+  CURRENCY_EUR = 2;
+}
+
+message Card {
+  string number = 1;
+}
+
 message Payment {
   string id = 1;
+
+  message Voucher {
+    string code = 1;
+  }
+
   oneof method {
     string credit_card = 2;
     string bank_account = 3;
+    int64 cash_amount = 4;
+    bytes signed_token = 5;
+    Currency currency = 6;
+    Card card = 7;
+    Voucher voucher = 8;
+  }
+
+  oneof channel {
+    string web = 9;
+    Card mobile_card = 10;
   }
 }

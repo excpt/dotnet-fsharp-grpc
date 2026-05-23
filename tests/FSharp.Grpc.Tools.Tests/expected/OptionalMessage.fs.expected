@@ -1,0 +1,179 @@
+namespace Example
+
+type Inner = { Label: string }
+
+module Inner =
+    let empty = { Label = "" }
+
+    let computeSize (value: Inner) : int =
+        let mutable size = 0
+
+        if value.Label <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Label)
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Inner) : unit =
+        if value.Label <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Label)
+
+    let encode (value: Inner) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Inner =
+        let mutable _Label = ""
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Label <- input.ReadString()
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Label = _Label }
+
+    let decode (data: byte array) : Inner =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Inner) : unit =
+        writer.WriteStartObject()
+
+        if value.Label <> "" then
+            writer.WriteString("label", value.Label)
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: Inner) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : Inner =
+        let mutable _Label = ""
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "label" -> _Label <- prop.Value.GetString()
+            | _ -> ()
+
+        { Label = _Label }
+
+    let decodeJson (json: string) : Inner =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement
+
+type WithOptionalMessage = { Id: string; Inner: Inner option }
+
+module WithOptionalMessage =
+    let empty = { Id = ""; Inner = None }
+
+    let computeSize (value: WithOptionalMessage) : int =
+        let mutable size = 0
+
+        if value.Id <> "" then
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+
+        match value.Inner with
+        | Some v ->
+            let subSize = Inner.computeSize v
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+        | None -> ()
+
+        size
+
+    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: WithOptionalMessage) : unit =
+        if value.Id <> "" then
+            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteString(value.Id)
+
+        match value.Inner with
+        | Some v ->
+            let subSize = Inner.computeSize v
+            output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+            output.WriteLength(subSize)
+            Inner.writeTo output v
+        | None -> ()
+
+    let encode (value: WithOptionalMessage) : byte array =
+        let size = computeSize value
+
+        if size = 0 then
+            Array.empty
+        else
+            let buffer = Array.zeroCreate size
+            use output = new Google.Protobuf.CodedOutputStream(buffer)
+            writeTo output value
+            output.Flush()
+            buffer
+
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) : WithOptionalMessage =
+        let mutable _Id = ""
+        let mutable _Inner = None
+        let mutable tag = input.ReadTag()
+
+        while tag <> 0u do
+            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+            | 1 -> _Id <- input.ReadString()
+            | 2 ->
+                use subInput = input.ReadBytes().CreateCodedInput()
+                _Inner <- Some(Inner.decodeFrom subInput)
+            | _ -> input.SkipLastField()
+
+            tag <- input.ReadTag()
+
+        { Id = _Id; Inner = _Inner }
+
+    let decode (data: byte array) : WithOptionalMessage =
+        use input = new Google.Protobuf.CodedInputStream(data)
+        decodeFrom input
+
+    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithOptionalMessage) : unit =
+        writer.WriteStartObject()
+
+        if value.Id <> "" then
+            writer.WriteString("id", value.Id)
+
+        match value.Inner with
+        | Some v ->
+            writer.WritePropertyName("inner")
+            Inner.writeJsonTo writer v
+        | None -> ()
+
+        writer.WriteEndObject()
+
+    let encodeJson (value: WithOptionalMessage) : string =
+        use bufferWriter = new System.IO.MemoryStream()
+        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+        writeJsonTo writer value
+        writer.Flush()
+        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+    let decodeJsonElement (element: System.Text.Json.JsonElement) : WithOptionalMessage =
+        let mutable _Id = ""
+        let mutable _Inner = None
+
+        for prop in element.EnumerateObject() do
+            match prop.Name with
+            | "id" -> _Id <- prop.Value.GetString()
+            | "inner" -> _Inner <- Some(Inner.decodeJsonElement prop.Value)
+            | _ -> ()
+
+        { Id = _Id; Inner = _Inner }
+
+    let decodeJson (json: string) : WithOptionalMessage =
+        use doc = System.Text.Json.JsonDocument.Parse(json)
+        decodeJsonElement doc.RootElement
