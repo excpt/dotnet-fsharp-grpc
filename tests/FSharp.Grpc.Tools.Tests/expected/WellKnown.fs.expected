@@ -23,18 +23,31 @@ module Event =
         let mutable size = 0
 
         if value.Id <> "" then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
+                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
 
         match value.CreatedAt with
         | Some v ->
             let subSize = v.CalculateSize()
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         match value.Ttl with
         | Some v ->
             let subSize = v.CalculateSize()
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(3)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         match value.Description with
@@ -42,7 +55,12 @@ module Event =
             let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
             wrapper.Value <- v
             let subSize = wrapper.CalculateSize()
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(4)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         match value.Priority with
@@ -50,7 +68,12 @@ module Event =
             let wrapper = Google.Protobuf.WellKnownTypes.Int32Value()
             wrapper.Value <- v
             let subSize = wrapper.CalculateSize()
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(5)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         match value.Active with
@@ -58,13 +81,23 @@ module Event =
             let wrapper = Google.Protobuf.WellKnownTypes.BoolValue()
             wrapper.Value <- v
             let subSize = wrapper.CalculateSize()
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(6) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(6)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         match value.Payload with
         | Some v ->
             let subSize = v.CalculateSize()
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
+
+            size <-
+                size
+                + Google.Protobuf.CodedOutputStream.ComputeTagSize(7)
+                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
+                + subSize
         | None -> ()
 
         size
@@ -258,19 +291,35 @@ module Event =
             | "id" -> _Id <- prop.Value.GetString()
             | "createdAt" ->
                 _CreatedAt <-
-                    Some(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(prop.Value.GetRawText()))
+                    Some(
+                        Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(
+                            prop.Value.GetRawText()
+                        )
+                    )
             | "created_at" ->
                 _CreatedAt <-
-                    Some(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(prop.Value.GetRawText()))
+                    Some(
+                        Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Timestamp>(
+                            prop.Value.GetRawText()
+                        )
+                    )
             | "ttl" ->
                 _Ttl <-
-                    Some(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Duration>(prop.Value.GetRawText()))
+                    Some(
+                        Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Duration>(
+                            prop.Value.GetRawText()
+                        )
+                    )
             | "description" -> _Description <- Some(prop.Value.GetString())
             | "priority" -> _Priority <- Some(prop.Value.GetInt32())
             | "active" -> _Active <- Some(prop.Value.GetBoolean())
             | "payload" ->
                 _Payload <-
-                    Some(Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Any>(prop.Value.GetRawText()))
+                    Some(
+                        Google.Protobuf.JsonParser.Default.Parse<Google.Protobuf.WellKnownTypes.Any>(
+                            prop.Value.GetRawText()
+                        )
+                    )
             | _ -> ()
 
         { Id = _Id
