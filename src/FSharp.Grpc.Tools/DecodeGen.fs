@@ -8,11 +8,11 @@ open FSharp.Grpc.Tools.TypeMapping
 open FSharp.Grpc.Tools.WireFormat
 
 /// Default literal for a scalar/enum field in decode (map key/value defaults).
-let scalarDefault (field: FieldDescriptorProto) =
+let scalarDefault (currentMsgFqn: string) (field: FieldDescriptorProto) =
     match field.Type with
     | FieldDescriptorProto.Types.Type.String -> "\"\""
     | FieldDescriptorProto.Types.Type.Bool -> "false"
-    | FieldDescriptorProto.Types.Type.Message -> $"{simpleTypeName field.TypeName}.empty"
+    | FieldDescriptorProto.Types.Type.Message -> $"{qualifiedRef currentMsgFqn field.TypeName}.empty"
     | FieldDescriptorProto.Types.Type.Int64
     | FieldDescriptorProto.Types.Type.Sint64
     | FieldDescriptorProto.Types.Type.Sfixed64 -> "0L"
@@ -29,16 +29,16 @@ type FieldVar =
     | MutableMap of fieldName: string * varName: string
 
 /// Default value for a mutable scalar field declaration in decode.
-let fieldDefault (field: FieldDescriptorProto) =
+let fieldDefault (currentMsgFqn: string) (field: FieldDescriptorProto) =
     match field.Type with
     | FieldDescriptorProto.Types.Type.Double -> "0.0"
     | FieldDescriptorProto.Types.Type.Float -> "0.0f"
     | FieldDescriptorProto.Types.Type.Bytes -> "Array.empty"
     | FieldDescriptorProto.Types.Type.Enum -> "LanguagePrimitives.EnumOfValue 0"
-    | _ -> scalarDefault field
+    | _ -> scalarDefault currentMsgFqn field
 
 /// Generate decode match clauses for all cases of a oneof group.
-let decodeOneofClauses (msg: DescriptorProto) (idx: int) =
+let decodeOneofClauses (currentMsgFqn: string) (msg: DescriptorProto) (idx: int) =
     let decl = msg.OneofDecl.[idx]
     let duName = oneofTypeName msg.Name decl.Name
     let duFieldName = toPascalCase decl.Name
@@ -54,7 +54,7 @@ let decodeOneofClauses (msg: DescriptorProto) (idx: int) =
         let caseName = toPascalCase c.Name
 
         if c.Type = FieldDescriptorProto.Types.Type.Message then
-            let msgTypeName = simpleTypeName c.TypeName
+            let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
 
             let buildExpr =
                 match Map.tryFind c.TypeName wellKnownTypeMap with
@@ -99,16 +99,22 @@ let decodeOneofClauses (msg: DescriptorProto) (idx: int) =
             ))
 
 /// Generate decode match clause for a map field.
-let decodeMapClause (msg: DescriptorProto) (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
+let decodeMapClause
+    (currentMsgFqn: string)
+    (msg: DescriptorProto)
+    (f: FieldDescriptorProto)
+    (fname: string)
+    (fieldNum: int)
+    =
     let entry = (tryGetMapEntry msg f).Value
     let keyField = entry.Field.[0]
     let valueField = entry.Field.[1]
-    let keyDefault = scalarDefault keyField
-    let valueDefault = scalarDefault valueField
+    let keyDefault = scalarDefault currentMsgFqn keyField
+    let valueDefault = scalarDefault currentMsgFqn valueField
 
     let valueClause =
         if valueField.Type = FieldDescriptorProto.Types.Type.Message then
-            let msgTypeName = simpleTypeName valueField.TypeName
+            let msgTypeName = qualifiedRef currentMsgFqn valueField.TypeName
 
             MatchClauseExpr(
                 ConstantPat(Constant("2")),
@@ -151,9 +157,9 @@ let decodeMapClause (msg: DescriptorProto) (f: FieldDescriptorProto) (fname: str
     )
 
 /// Generate decode match clause for a repeated field.
-let decodeRepeatedClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
+let decodeRepeatedClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
     if f.Type = FieldDescriptorProto.Types.Type.Message then
-        let msgTypeName = simpleTypeName f.TypeName
+        let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
         MatchClauseExpr(
             ConstantPat(Constant($"{fieldNum}")),
@@ -193,8 +199,8 @@ let decodeRepeatedClause (f: FieldDescriptorProto) (fname: string) (fieldNum: in
         )
 
 /// Generate decode match clause for a (non-optional, non-repeated) message field.
-let decodeMessageClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
-    let msgTypeName = simpleTypeName f.TypeName
+let decodeMessageClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
+    let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
     match Map.tryFind f.TypeName wellKnownTypeMap with
     | Some wktType ->
@@ -231,9 +237,9 @@ let decodeMessageClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int
             )
 
 /// Generate decode match clause for a proto3 optional field.
-let decodeOptionalClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
+let decodeOptionalClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
     if f.Type = FieldDescriptorProto.Types.Type.Message then
-        decodeMessageClause f fname fieldNum
+        decodeMessageClause currentMsgFqn f fname fieldNum
     else
         let readCall = readExpr "input" f
 
@@ -244,7 +250,7 @@ let decodeScalarClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int)
     MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), LongIdentSetExpr($"_{fname}", E(readExpr "input" f)))
 
 /// Generate decodeFrom function as AST widget (reads from existing CodedInputStream).
-let generateDecodeFromAST (msg: DescriptorProto) =
+let generateDecodeFromAST (currentMsgFqn: string) (msg: DescriptorProto) =
     let mutable emittedOneofs = Set.empty
     let fieldVars = ResizeArray<FieldVar>()
     let clauses = ResizeArray<WidgetBuilder<MatchClauseNode>>()
@@ -261,21 +267,21 @@ let generateDecodeFromAST (msg: DescriptorProto) =
                 let decl = msg.OneofDecl.[idx]
                 let duFieldName = toPascalCase decl.Name
                 fieldVars.Add(MutableScalar(duFieldName, $"_{duFieldName}", "None"))
-                clauses.AddRange(decodeOneofClauses msg idx)
+                clauses.AddRange(decodeOneofClauses currentMsgFqn msg idx)
         elif tryGetMapEntry msg f |> Option.isSome then
             fieldVars.Add(MutableMap(fname, $"_{fname}"))
-            clauses.Add(decodeMapClause msg f fname fieldNum)
+            clauses.Add(decodeMapClause currentMsgFqn msg f fname fieldNum)
         elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
             fieldVars.Add(MutableList(fname, $"_{fname}"))
-            clauses.Add(decodeRepeatedClause f fname fieldNum)
+            clauses.Add(decodeRepeatedClause currentMsgFqn f fname fieldNum)
         elif f.Proto3Optional then
             fieldVars.Add(MutableScalar(fname, $"_{fname}", "None"))
-            clauses.Add(decodeOptionalClause f fname fieldNum)
+            clauses.Add(decodeOptionalClause currentMsgFqn f fname fieldNum)
         elif f.Type = FieldDescriptorProto.Types.Type.Message then
             fieldVars.Add(MutableScalar(fname, $"_{fname}", "None"))
-            clauses.Add(decodeMessageClause f fname fieldNum)
+            clauses.Add(decodeMessageClause currentMsgFqn f fname fieldNum)
         else
-            fieldVars.Add(MutableScalar(fname, $"_{fname}", fieldDefault f))
+            fieldVars.Add(MutableScalar(fname, $"_{fname}", fieldDefault currentMsgFqn f))
             clauses.Add(decodeScalarClause f fname fieldNum)
 
     clauses.Add(MatchClauseExpr(ConstantPat(Constant("_")), E "input.SkipLastField()"))

@@ -9,16 +9,10 @@ module Address =
         let mutable size = 0
 
         if value.Street <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Street)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Street)
 
         if value.City <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.City)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.City)
 
         size
 
@@ -105,16 +99,10 @@ module Company =
         let mutable size = 0
 
         if value.Name <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Name)
 
         if value.EmployeeCount <> 0 then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.EmployeeCount)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.EmployeeCount)
 
         size
 

@@ -7,42 +7,21 @@ module WithRepeated =
 
     let computeSize (value: WithRepeated) : int =
         let mutable size = 0
-
-        value.Tags
-        |> List.iter (fun item ->
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(item))
+        value.Tags |> List.iter (fun item -> size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(item))
 
         if not (List.isEmpty value.Scores) then
             let mutable packedSize = 0
-
-            value.Scores
-            |> List.iter (fun item ->
-                packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item))
-
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeLengthSize(packedSize)
-                + packedSize
+            value.Scores |> List.iter (fun item -> packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item))
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(packedSize) + packedSize
 
         size
 
     let writeTo (output: Google.Protobuf.CodedOutputStream) (value: WithRepeated) : unit =
-        value.Tags
-        |> List.iter (fun item ->
-            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-            output.WriteString(item))
+        value.Tags |> List.iter (fun item -> output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteString(item))
 
         if not (List.isEmpty value.Scores) then
             let mutable packedSize = 0
-
-            value.Scores
-            |> List.iter (fun item ->
-                packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item))
-
+            value.Scores |> List.iter (fun item -> packedSize <- packedSize + Google.Protobuf.CodedOutputStream.ComputeInt32Size(item))
             output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteLength(packedSize)
             value.Scores |> List.iter (fun item -> output.WriteInt32(item))

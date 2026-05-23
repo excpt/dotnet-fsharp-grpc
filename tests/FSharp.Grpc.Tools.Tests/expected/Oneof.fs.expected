@@ -19,9 +19,7 @@ module Currency =
         | "CURRENCY_USD" -> Currency.CurrencyUsd
         | "CURRENCY_EUR" -> Currency.CurrencyEur
         | _ ->
-            match System.Int32.TryParse(name) with
-            | true, v -> LanguagePrimitives.EnumOfValue v
-            | _ -> LanguagePrimitives.EnumOfValue 0
+            match System.Int32.TryParse(name) with | true, v -> LanguagePrimitives.EnumOfValue v | _ -> LanguagePrimitives.EnumOfValue 0
 
 type Card = { Number: string }
 
@@ -32,10 +30,7 @@ module Card =
         let mutable size = 0
 
         if value.Number <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Number)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Number)
 
         size
 
@@ -131,10 +126,7 @@ module Payment =
                 let mutable size = 0
 
                 if value.Code <> "" then
-                    size <-
-                        size
-                        + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                        + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Code)
+                    size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Code)
 
                 size
 
@@ -210,73 +202,37 @@ module Payment =
         let mutable size = 0
 
         if value.Id <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Id)
 
         match value.Method with
         | Some oneofValue ->
             match oneofValue with
             | PaymentMethod.CreditCard v ->
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                    + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
             | PaymentMethod.BankAccount v ->
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(3)
-                    + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(3) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
             | PaymentMethod.CashAmount v ->
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(4)
-                    + Google.Protobuf.CodedOutputStream.ComputeInt64Size(v)
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(4) + Google.Protobuf.CodedOutputStream.ComputeInt64Size(v)
             | PaymentMethod.SignedToken v ->
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(5)
-                    + Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom(v))
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(5) + Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom(v))
             | PaymentMethod.Currency v ->
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(6)
-                    + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int v)
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(6) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(int v)
             | PaymentMethod.Card v ->
                 let subSize = Card.computeSize v
-
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(7)
-                    + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                    + subSize
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
             | PaymentMethod.Voucher v ->
                 let subSize = Types.Voucher.computeSize v
-
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(8)
-                    + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                    + subSize
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(8) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
         match value.Channel with
         | Some oneofValue ->
             match oneofValue with
             | PaymentChannel.Web v ->
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(9)
-                    + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(9) + Google.Protobuf.CodedOutputStream.ComputeStringSize(v)
             | PaymentChannel.MobileCard v ->
                 let subSize = Card.computeSize v
-
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(10)
-                    + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                    + subSize
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(10) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
         size
@@ -431,40 +387,17 @@ module Payment =
             | "bank_account" -> _Method <- Some(PaymentMethod.BankAccount(prop.Value.GetString()))
             | "cashAmount" ->
                 _Method <-
-                    Some(
-                        PaymentMethod.CashAmount(
-                            if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then
-                                int64 (prop.Value.GetString())
-                            else
-                                prop.Value.GetInt64()
-                        )
-                    )
+                    Some(PaymentMethod.CashAmount(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()))
             | "cash_amount" ->
                 _Method <-
-                    Some(
-                        PaymentMethod.CashAmount(
-                            if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then
-                                int64 (prop.Value.GetString())
-                            else
-                                prop.Value.GetInt64()
-                        )
-                    )
+                    Some(PaymentMethod.CashAmount(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()))
             | "signedToken" ->
                 _Method <- Some(PaymentMethod.SignedToken(System.Convert.FromBase64String(prop.Value.GetString())))
             | "signed_token" ->
                 _Method <- Some(PaymentMethod.SignedToken(System.Convert.FromBase64String(prop.Value.GetString())))
             | "currency" ->
                 _Method <-
-                    Some(
-                        PaymentMethod.Currency(
-                            Currency.fromJsonName (
-                                if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then
-                                    string (prop.Value.GetInt32())
-                                else
-                                    prop.Value.GetString()
-                            )
-                        )
-                    )
+                    Some(PaymentMethod.Currency(Currency.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())))
             | "card" -> _Method <- Some(PaymentMethod.Card(Card.decodeJsonElement prop.Value))
             | "voucher" -> _Method <- Some(PaymentMethod.Voucher(Types.Voucher.decodeJsonElement prop.Value))
             | "web" -> _Channel <- Some(PaymentChannel.Web(prop.Value.GetString()))

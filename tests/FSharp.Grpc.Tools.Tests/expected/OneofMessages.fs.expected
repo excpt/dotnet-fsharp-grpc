@@ -9,16 +9,10 @@ module FileMetadata =
         let mutable size = 0
 
         if value.TotalSize <> 0UL then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeUInt64Size(value.TotalSize)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeUInt64Size(value.TotalSize)
 
         if value.Etag <> "" then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Etag)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Etag)
 
         size
 
@@ -88,16 +82,10 @@ module FileMetadata =
             match prop.Name with
             | "totalSize" ->
                 _TotalSize <-
-                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then
-                        uint64 (prop.Value.GetString())
-                    else
-                        prop.Value.GetUInt64()
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()
             | "total_size" ->
                 _TotalSize <-
-                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then
-                        uint64 (prop.Value.GetString())
-                    else
-                        prop.Value.GetUInt64()
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()
             | "etag" -> _Etag <- prop.Value.GetString()
             | _ -> ()
 
@@ -116,16 +104,10 @@ module FileChunk =
         let mutable size = 0
 
         if value.Data.Length > 0 then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                + Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom(value.Data))
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeBytesSize(Google.Protobuf.ByteString.CopyFrom(value.Data))
 
         if value.Offset <> 0UL then
-            size <-
-                size
-                + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                + Google.Protobuf.CodedOutputStream.ComputeUInt64Size(value.Offset)
+            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeUInt64Size(value.Offset)
 
         size
 
@@ -196,10 +178,7 @@ module FileChunk =
             | "data" -> _Data <- System.Convert.FromBase64String(prop.Value.GetString())
             | "offset" ->
                 _Offset <-
-                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then
-                        uint64 (prop.Value.GetString())
-                    else
-                        prop.Value.GetUInt64()
+                    if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()
             | _ -> ()
 
         { Data = _Data; Offset = _Offset }
@@ -225,20 +204,10 @@ module FileResponse =
             match oneofValue with
             | FileResponsePayload.Metadata v ->
                 let subSize = FileMetadata.computeSize v
-
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(1)
-                    + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                    + subSize
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
             | FileResponsePayload.Chunk v ->
                 let subSize = FileChunk.computeSize v
-
-                size <-
-                    size
-                    + Google.Protobuf.CodedOutputStream.ComputeTagSize(2)
-                    + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize)
-                    + subSize
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
         size

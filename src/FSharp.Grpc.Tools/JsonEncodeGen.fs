@@ -8,7 +8,7 @@ open FSharp.Grpc.Tools.TypeMapping
 open FSharp.Grpc.Tools.WireFormat
 
 /// JSON write expression for a single scalar value (not wrapped in property name).
-let private jsonWriteValueExpr (valueExpr: string) (f: FieldDescriptorProto) =
+let private jsonWriteValueExpr (currentMsgFqn: string) (valueExpr: string) (f: FieldDescriptorProto) =
     match f.Type with
     | FieldDescriptorProto.Types.Type.String -> $"writer.WriteStringValue({valueExpr})"
     | FieldDescriptorProto.Types.Type.Bool -> $"writer.WriteBooleanValue({valueExpr})"
@@ -28,11 +28,16 @@ let private jsonWriteValueExpr (valueExpr: string) (f: FieldDescriptorProto) =
         $"if System.Single.IsNaN({valueExpr}) then writer.WriteStringValue(\"NaN\") elif System.Single.IsPositiveInfinity({valueExpr}) then writer.WriteStringValue(\"Infinity\") elif System.Single.IsNegativeInfinity({valueExpr}) then writer.WriteStringValue(\"-Infinity\") else writer.WriteNumberValue(float {valueExpr})"
     | FieldDescriptorProto.Types.Type.Bytes -> $"writer.WriteStringValue(System.Convert.ToBase64String({valueExpr}))"
     | FieldDescriptorProto.Types.Type.Enum ->
-        $"writer.WriteStringValue({simpleTypeName f.TypeName}.toJsonName {valueExpr})"
+        $"writer.WriteStringValue({qualifiedRef currentMsgFqn f.TypeName}.toJsonName {valueExpr})"
     | _ -> $"writer.WriteNumberValue({valueExpr})"
 
 /// JSON write expression with property name for a scalar field.
-let private jsonWritePropertyExpr (jsonName: string) (valueExpr: string) (f: FieldDescriptorProto) =
+let private jsonWritePropertyExpr
+    (currentMsgFqn: string)
+    (jsonName: string)
+    (valueExpr: string)
+    (f: FieldDescriptorProto)
+    =
     match f.Type with
     | FieldDescriptorProto.Types.Type.String -> $"writer.WriteString(\"{jsonName}\", {valueExpr})"
     | FieldDescriptorProto.Types.Type.Bool -> $"writer.WriteBoolean(\"{jsonName}\", {valueExpr})"
@@ -49,11 +54,11 @@ let private jsonWritePropertyExpr (jsonName: string) (valueExpr: string) (f: Fie
     | FieldDescriptorProto.Types.Type.Bytes ->
         $"writer.WriteString(\"{jsonName}\", System.Convert.ToBase64String({valueExpr}))"
     | FieldDescriptorProto.Types.Type.Enum ->
-        $"writer.WriteString(\"{jsonName}\", {simpleTypeName f.TypeName}.toJsonName {valueExpr})"
+        $"writer.WriteString(\"{jsonName}\", {qualifiedRef currentMsgFqn f.TypeName}.toJsonName {valueExpr})"
     | _ -> $"writer.WriteNumber(\"{jsonName}\", {valueExpr})"
 
 /// Generate writeJsonTo function as AST widget.
-let generateWriteJsonToAST (msg: DescriptorProto) =
+let generateWriteJsonToAST (currentMsgFqn: string) (msg: DescriptorProto) =
     let mutable emittedOneofs = Set.empty
     let stmts = ResizeArray<WidgetBuilder<ComputationExpressionStatement>>()
 
@@ -85,7 +90,7 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
                         let caseJsonName = c.JsonName
 
                         if c.Type = FieldDescriptorProto.Types.Type.Message then
-                            let msgTypeName = simpleTypeName c.TypeName
+                            let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
 
                             match Map.tryFind c.TypeName wellKnownTypeMap with
                             | Some _ ->
@@ -128,7 +133,7 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
                         else
                             MatchClauseExpr(
                                 ConstantPat(Constant($"{duName}.{caseName} v")),
-                                E(jsonWritePropertyExpr caseJsonName "v" c)
+                                E(jsonWritePropertyExpr currentMsgFqn caseJsonName "v" c)
                             ))
 
                 stmts.Add(
@@ -148,7 +153,7 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
             let valueField = entry.Field.[1]
 
             if valueField.Type = FieldDescriptorProto.Types.Type.Message then
-                let msgTypeName = simpleTypeName valueField.TypeName
+                let msgTypeName = qualifiedRef currentMsgFqn valueField.TypeName
 
                 match Map.tryFind valueField.TypeName wellKnownTypeMap with
                 | Some _ ->
@@ -211,7 +216,7 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
                                           E $"value.{fname}",
                                           CompExprBodyExpr(
                                               [ OtherExpr(E "writer.WritePropertyName(string kvp.Key)")
-                                                OtherExpr(E(jsonWriteValueExpr "kvp.Value" valueField)) ]
+                                                OtherExpr(E(jsonWriteValueExpr currentMsgFqn "kvp.Value" valueField)) ]
                                           )
                                       )
                                   )
@@ -222,7 +227,7 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
                 )
         elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
             if f.Type = FieldDescriptorProto.Types.Type.Message then
-                let msgTypeName = simpleTypeName f.TypeName
+                let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
                 match Map.tryFind f.TypeName wellKnownTypeMap with
                 | Some _ ->
@@ -271,7 +276,13 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
                             E $"not (List.isEmpty value.{fname})",
                             CompExprBodyExpr(
                                 [ OtherExpr(E $"writer.WriteStartArray(\"{jsonName}\")")
-                                  OtherExpr(ForEachDoExpr("item", E $"value.{fname}", E(jsonWriteValueExpr "item" f)))
+                                  OtherExpr(
+                                      ForEachDoExpr(
+                                          "item",
+                                          E $"value.{fname}",
+                                          E(jsonWriteValueExpr currentMsgFqn "item" f)
+                                      )
+                                  )
                                   OtherExpr(E "writer.WriteEndArray()") ]
                             )
                         )
@@ -279,7 +290,7 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
                 )
         elif f.Proto3Optional then
             if f.Type = FieldDescriptorProto.Types.Type.Message then
-                let msgTypeName = simpleTypeName f.TypeName
+                let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
                 match Map.tryFind f.TypeName wellKnownTypeMap with
                 | Some _ ->
@@ -350,13 +361,16 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
                     OtherExpr(
                         MatchExpr(
                             E $"value.{fname}",
-                            [ MatchClauseExpr(ConstantPat(Constant("Some v")), E(jsonWritePropertyExpr jsonName "v" f))
+                            [ MatchClauseExpr(
+                                  ConstantPat(Constant("Some v")),
+                                  E(jsonWritePropertyExpr currentMsgFqn jsonName "v" f)
+                              )
                               MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                         )
                     )
                 )
         elif f.Type = FieldDescriptorProto.Types.Type.Message then
-            let msgTypeName = simpleTypeName f.TypeName
+            let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
             match Map.tryFind f.TypeName wellKnownTypeMap with
             | Some _ ->
@@ -441,7 +455,9 @@ let generateWriteJsonToAST (msg: DescriptorProto) =
         else
             let check = defaultCheckExpr fname f
 
-            stmts.Add(OtherExpr(IfThenExpr(E check, E(jsonWritePropertyExpr jsonName $"value.{fname}" f))))
+            stmts.Add(
+                OtherExpr(IfThenExpr(E check, E(jsonWritePropertyExpr currentMsgFqn jsonName $"value.{fname}" f)))
+            )
 
     stmts.Add(OtherExpr(E "writer.WriteEndObject()"))
 

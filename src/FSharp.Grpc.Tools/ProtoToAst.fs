@@ -19,8 +19,18 @@ type private TypeDef =
     | UnionDef of WidgetBuilder<TypeDefnUnionNode>
     | ModuleDef of WidgetBuilder<NestedModuleNode>
 
-/// Convert a DescriptorProto (message) to record + any oneof DUs.
-let private messageToTypes (msg: DescriptorProto) =
+/// Recursively convert a message to its record + companion module + sibling
+/// oneof DUs. Nested types (messages and enums) live INSIDE the companion
+/// module's `Types` submodule, mirroring the convention C#'s protobuf codegen
+/// has used for years. The `Types` separator is what prevents F#'s field-vs-
+/// module name resolution from picking record fields when chaining through
+/// nested type paths (see issue #13 PR notes).
+///
+/// `currentMsgFqn` is the proto fully-qualified name of this message (e.g.
+/// `.acme.platform.v1.Organization`), threaded so codegen can emit relative
+/// `Types.X` references for own nested types and absolute `Parent.Types.X`
+/// for cross-message refs.
+let rec private messageToTypes (currentMsgFqn: string) (msg: DescriptorProto) =
     let mapEntries = mapEntryTypes msg
 
     // Group real oneof fields (not proto3 synthetic optional oneofs).
@@ -30,7 +40,8 @@ let private messageToTypes (msg: DescriptorProto) =
         |> Seq.groupBy (fun f -> f.OneofIndex)
         |> Map.ofSeq
 
-    // Generate DUs only for real oneofs.
+    // Generate DUs only for real oneofs. DUs live at parent scope (sibling
+    // of the record), NOT inside the Types submodule.
     let oneofDUs =
         msg.OneofDecl
         |> Seq.mapi (fun i decl ->
@@ -93,50 +104,73 @@ let private messageToTypes (msg: DescriptorProto) =
                 Some(RecordFieldExpr(toPascalCase f.Name, defaultValueExpr msg f)))
         |> Seq.toList
 
-    let computeSizeFunc = generateComputeSizeAST msg
-    let writeToFunc = generateWriteToAST msg
-    let encodeFunc = generateEncodeAST msg
-    let decodeFromFunc = generateDecodeFromAST msg
-    let decodeFunc = generateDecodeAST msg
-    let writeJsonToFunc = generateWriteJsonToAST msg
-    let encodeJsonFunc = generateEncodeJsonAST msg
-    let decodeJsonElementFunc = generateDecodeJsonElementAST msg
-    let decodeJsonFunc = generateDecodeJsonAST msg
-
-    let companionModule =
-        ModuleDef(
-            Module(msg.Name) {
-                Value("empty", RecordExpr(emptyFields))
-                computeSizeFunc
-                writeToFunc
-                encodeFunc
-                decodeFromFunc
-                decodeFunc
-                writeJsonToFunc
-                encodeJsonFunc
-                decodeJsonElementFunc
-                decodeJsonFunc
-            }
-        )
-
-    oneofDUs @ [ record; companionModule ]
-
-/// Recursively collect all type definitions from a message,
-/// flattening nested types before the parent record.
-/// Skips synthetic map entry types.
-let rec private collectMessageTypes (msg: DescriptorProto) =
-    let nestedEnums =
+    // Nested types (enums and messages) — recursively built so each carries
+    // its own nested Types submodule chain.
+    let nestedEnumDefs =
         msg.EnumType
         |> Seq.collect (fun e -> [ EnumDef(enumToEnum e); ModuleDef(enumJsonModule e) ])
         |> Seq.toList
 
-    let nestedMessages =
+    let nestedMessageDefs =
         msg.NestedType
         |> Seq.filter (not << isMapEntry)
-        |> Seq.collect collectMessageTypes
+        |> Seq.collect (fun n -> messageToTypes $"{currentMsgFqn}.{n.Name}" n)
         |> Seq.toList
 
-    nestedEnums @ nestedMessages @ messageToTypes msg
+    let typesContent = nestedEnumDefs @ nestedMessageDefs
+
+    let computeSizeFunc = generateComputeSizeAST currentMsgFqn msg
+    let writeToFunc = generateWriteToAST currentMsgFqn msg
+    let encodeFunc = generateEncodeAST msg
+    let decodeFromFunc = generateDecodeFromAST currentMsgFqn msg
+    let decodeFunc = generateDecodeAST msg
+    let writeJsonToFunc = generateWriteJsonToAST currentMsgFqn msg
+    let encodeJsonFunc = generateEncodeJsonAST msg
+    let decodeJsonElementFunc = generateDecodeJsonElementAST currentMsgFqn msg
+    let decodeJsonFunc = generateDecodeJsonAST msg
+
+    let companionModule =
+        if List.isEmpty typesContent then
+            ModuleDef(
+                Module(msg.Name) {
+                    Value("empty", RecordExpr(emptyFields))
+                    computeSizeFunc
+                    writeToFunc
+                    encodeFunc
+                    decodeFromFunc
+                    decodeFunc
+                    writeJsonToFunc
+                    encodeJsonFunc
+                    decodeJsonElementFunc
+                    decodeJsonFunc
+                }
+            )
+        else
+            ModuleDef(
+                Module(msg.Name) {
+                    Module("Types") {
+                        for t in typesContent do
+                            match t with
+                            | EnumDef e -> e
+                            | RecordDef r -> r
+                            | UnionDef u -> u
+                            | ModuleDef m -> m
+                    }
+
+                    Value("empty", RecordExpr(emptyFields))
+                    computeSizeFunc
+                    writeToFunc
+                    encodeFunc
+                    decodeFromFunc
+                    decodeFunc
+                    writeJsonToFunc
+                    encodeJsonFunc
+                    decodeJsonElementFunc
+                    decodeJsonFunc
+                }
+            )
+
+    oneofDUs @ [ record; companionModule ]
 
 /// True if any message in the file references another in-file message or enum
 /// that's declared *after* it in the generator's output order. Such forward
@@ -154,72 +188,85 @@ let rec private collectMessageTypes (msg: DescriptorProto) =
 /// Self-references (e.g. `User.manager: User`) don't need `rec` — record types
 /// are inherently self-recursive — so the `>` (strict) comparison excludes them.
 let private needsRecursiveNamespace (file: FileDescriptorProto) : bool =
-    let buildFqn (parentFqn: string) (name: string) =
-        if parentFqn = "" then $".{name}" else $"{parentFqn}.{name}"
+    // With the new nested layout, any message that has nested message/enum
+    // types forces `rec` — the parent record forward-references its own
+    // `Parent.Types.Inner`, which is declared later inside the companion
+    // module.
+    let rec hasAnyNestedType (msg: DescriptorProto) =
+        (msg.NestedType |> Seq.exists (not << isMapEntry))
+        || (msg.EnumType |> Seq.isEmpty |> not)
+        || (msg.NestedType |> Seq.exists hasAnyNestedType)
 
-    let packageFqn =
-        if System.String.IsNullOrEmpty file.Package then
-            ""
-        else
-            "." + file.Package
+    if file.MessageType |> Seq.exists hasAnyNestedType then
+        true
+    else
 
-    // Yield the FQN of every named type (enum or message) in the order it
-    // appears in generator output.
-    let rec messageSubtree (parentFqn: string) (msg: DescriptorProto) =
-        seq {
-            let myFqn = buildFqn parentFqn msg.Name
+        let buildFqn (parentFqn: string) (name: string) =
+            if parentFqn = "" then $".{name}" else $"{parentFqn}.{name}"
 
-            for e in msg.EnumType do
-                yield buildFqn myFqn e.Name
-
-            for nested in msg.NestedType do
-                if not (isMapEntry nested) then
-                    yield! messageSubtree myFqn nested
-
-            yield myFqn
-        }
-
-    let orderedFqns =
-        seq {
-            for e in file.EnumType do
-                yield buildFqn packageFqn e.Name
-
-            for m in file.MessageType do
-                yield! messageSubtree packageFqn m
-        }
-        |> Seq.toList
-
-    let positionByFqn = orderedFqns |> List.mapi (fun i fqn -> fqn, i) |> Map.ofList
-
-    // Re-walk to pair each message with its FQN; check its field refs against
-    // the position map.
-    let rec messagesWithFqn (parentFqn: string) (msg: DescriptorProto) =
-        seq {
-            let myFqn = buildFqn parentFqn msg.Name
-
-            for nested in msg.NestedType do
-                if not (isMapEntry nested) then
-                    yield! messagesWithFqn myFqn nested
-
-            yield (myFqn, msg)
-        }
-
-    file.MessageType
-    |> Seq.collect (messagesWithFqn packageFqn)
-    |> Seq.exists (fun (myFqn, msg) ->
-        let myPos = positionByFqn.[myFqn]
-
-        msg.Field
-        |> Seq.exists (fun f ->
-            if
-                f.Type = FieldDescriptorProto.Types.Type.Message
-                || f.Type = FieldDescriptorProto.Types.Type.Enum
-            then
-                match Map.tryFind f.TypeName positionByFqn with
-                | Some targetPos -> targetPos > myPos
-                | None -> false
+        let packageFqn =
+            if System.String.IsNullOrEmpty file.Package then
+                ""
             else
-                false))
+                "." + file.Package
+
+        // Yield the FQN of every named type (enum or message) in the order it
+        // appears in generator output.
+        let rec messageSubtree (parentFqn: string) (msg: DescriptorProto) =
+            seq {
+                let myFqn = buildFqn parentFqn msg.Name
+
+                for e in msg.EnumType do
+                    yield buildFqn myFqn e.Name
+
+                for nested in msg.NestedType do
+                    if not (isMapEntry nested) then
+                        yield! messageSubtree myFqn nested
+
+                yield myFqn
+            }
+
+        let orderedFqns =
+            seq {
+                for e in file.EnumType do
+                    yield buildFqn packageFqn e.Name
+
+                for m in file.MessageType do
+                    yield! messageSubtree packageFqn m
+            }
+            |> Seq.toList
+
+        let positionByFqn = orderedFqns |> List.mapi (fun i fqn -> fqn, i) |> Map.ofList
+
+        // Re-walk to pair each message with its FQN; check its field refs against
+        // the position map.
+        let rec messagesWithFqn (parentFqn: string) (msg: DescriptorProto) =
+            seq {
+                let myFqn = buildFqn parentFqn msg.Name
+
+                for nested in msg.NestedType do
+                    if not (isMapEntry nested) then
+                        yield! messagesWithFqn myFqn nested
+
+                yield (myFqn, msg)
+            }
+
+        file.MessageType
+        |> Seq.collect (messagesWithFqn packageFqn)
+        |> Seq.exists (fun (myFqn, msg) ->
+            let myPos = positionByFqn.[myFqn]
+
+            msg.Field
+            |> Seq.exists (fun f ->
+                if
+                    f.Type = FieldDescriptorProto.Types.Type.Message
+                    || f.Type = FieldDescriptorProto.Types.Type.Enum
+                then
+                    match Map.tryFind f.TypeName positionByFqn with
+                    | Some targetPos -> targetPos > myPos
+                    | None -> false
+                else
+                    false))
 
 /// Extract the package portion of a fully-qualified proto type name
 /// (e.g. ".shared.Money" -> Some "Shared"; ".example.users.User" -> Some "Example.Users";
@@ -290,12 +337,21 @@ let private collectImportedPackages (file: FileDescriptorProto) : string list =
 /// Converts a FileDescriptorProto into a Fabulous.AST Oak widget
 /// that represents the generated F# source file.
 let generate (file: FileDescriptorProto) : WidgetBuilder<Oak> =
+    let packageFqn =
+        if System.String.IsNullOrEmpty file.Package then
+            ""
+        else
+            "." + file.Package
+
     let enums =
         file.EnumType
         |> Seq.collect (fun e -> [ EnumDef(enumToEnum e); ModuleDef(enumJsonModule e) ])
         |> Seq.toList
 
-    let messageTypes = file.MessageType |> Seq.collect collectMessageTypes |> Seq.toList
+    let messageTypes =
+        file.MessageType
+        |> Seq.collect (fun m -> messageToTypes $"{packageFqn}.{m.Name}" m)
+        |> Seq.toList
 
     let allTypes = enums @ messageTypes
     let needsRec = needsRecursiveNamespace file
