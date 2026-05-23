@@ -29,14 +29,16 @@ let private assertValidFSharpSyntax (code: string) =
     |> Async.RunSynchronously
     |> should be True
 
-/// Snapshots that need extra context to type-check.
+/// Snapshots that need extra context to type-check. Each entry is a workaround
+/// for a tracked generator deficiency — without these, the snapshot would fail
+/// to type-check standalone (consumers hit the same issue at build time).
 let private typeCheckPrelude =
     Map.ofList
         [
-          // imports.proto references shared.Money but the generator emits `Money`
-          // unqualified (it strips the package). Real consumers compile shared's
-          // own generated file alongside, which puts Money in scope. Supply a
-          // stub for isolated type-checking.
+          // Imports.fs.expected references `Money` unqualified, but Money is
+          // generated in `namespace Shared`, not `namespace Billing`. Tracked
+          // in issue #6 (cross-file type references without namespace or open).
+          // Stub Money here so the snapshot type-checks in isolation.
           "Imports",
           """namespace Billing
 
@@ -51,19 +53,20 @@ module Money =
 """ ]
 
 /// Snapshots whose generated source lacks a top-level namespace/module declaration.
-/// We wrap them in a synthetic module so F#'s library compiler accepts them.
+/// Tracked in issue #7 (no-package protos emit invalid library F#). Wrap in a
+/// synthetic module so the snapshot type-checks.
 let private wrapInModule = Set.ofList [ "NoPackage" ]
 
-/// Snapshots intentionally skipped from type-check. Each entry is a known issue
-/// that's tracked separately — the snapshot equality test still runs.
+/// Snapshots skipped from type-check because of known generator bugs that can't
+/// be worked around with a prelude. The snapshot-equality test still runs, so
+/// regressions in the *current* (buggy) output are still caught.
 let private typeCheckSkip =
     Map.ofList
         [
-          // Complex.proto has cyclic message refs (User <-> Organization <->
-          // Department.members: User list). Generator emits a flat namespace
-          // without `namespace rec`, so forward refs don't resolve. Separate
-          // issue — orthogonal to oneof handling.
-          "Complex", "cyclic message refs not yet handled by generator (needs `namespace rec`)" ]
+          // Tracked in issue #8 (cyclic message refs need `namespace rec`).
+          // Complex.proto has User <-> Organization <-> Department.members:
+          // User list — generator emits flat `namespace`, forward refs unresolved.
+          "Complex", "see issue #8: cyclic message refs need `namespace rec`" ]
 
 let private assertTypeChecks (name: string) (actual: string) =
     match Map.tryFind name typeCheckSkip with
