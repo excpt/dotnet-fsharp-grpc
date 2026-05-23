@@ -1,84 +1,84 @@
-namespace Test
+namespace rec Test
 
-type Inner = { X: int }
-
-module Inner =
-    let empty = { X = 0 }
-
-    let computeSize (value: Inner) : int =
-        let mutable size = 0
-
-        if value.X <> 0 then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.X)
-
-        size
-
-    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Inner) : unit =
-        if value.X <> 0 then
-            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.Varint)
-            output.WriteInt32(value.X)
-
-    let encode (value: Inner) : byte array =
-        let size = computeSize value
-
-        if size = 0 then
-            Array.empty
-        else
-            let buffer = Array.zeroCreate size
-            use output = new Google.Protobuf.CodedOutputStream(buffer)
-            writeTo output value
-            output.Flush()
-            buffer
-
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Inner =
-        let mutable _X = 0
-        let mutable tag = input.ReadTag()
-
-        while tag <> 0u do
-            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
-            | 1 -> _X <- input.ReadInt32()
-            | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
-
-        { X = _X }
-
-    let decode (data: byte array) : Inner =
-        use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
-
-    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Inner) : unit =
-        writer.WriteStartObject()
-
-        if value.X <> 0 then
-            writer.WriteNumber("x", value.X)
-
-        writer.WriteEndObject()
-
-    let encodeJson (value: Inner) : string =
-        use bufferWriter = new System.IO.MemoryStream()
-        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
-        writeJsonTo writer value
-        writer.Flush()
-        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
-
-    let decodeJsonElement (element: System.Text.Json.JsonElement) : Inner =
-        let mutable _X = 0
-
-        for prop in element.EnumerateObject() do
-            match prop.Name with
-            | "x" -> _X <- prop.Value.GetInt32()
-            | _ -> ()
-
-        { X = _X }
-
-    let decodeJson (json: string) : Inner =
-        use doc = System.Text.Json.JsonDocument.Parse(json)
-        decodeJsonElement doc.RootElement
-
-type Foo = { LocalRef: Inner option }
+type Foo = { LocalRef: Foo.Inner option }
 
 module Foo =
+    type Inner = { X: int }
+
+    module Inner =
+        let empty = { X = 0 }
+
+        let computeSize (value: Inner) : int =
+            let mutable size = 0
+
+            if value.X <> 0 then
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.X)
+
+            size
+
+        let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Inner) : unit =
+            if value.X <> 0 then
+                output.WriteTag(1, Google.Protobuf.WireFormat.WireType.Varint)
+                output.WriteInt32(value.X)
+
+        let encode (value: Inner) : byte array =
+            let size = computeSize value
+
+            if size = 0 then
+                Array.empty
+            else
+                let buffer = Array.zeroCreate size
+                use output = new Google.Protobuf.CodedOutputStream(buffer)
+                writeTo output value
+                output.Flush()
+                buffer
+
+        let decodeFrom (input: Google.Protobuf.CodedInputStream) : Inner =
+            let mutable _X = 0
+            let mutable tag = input.ReadTag()
+
+            while tag <> 0u do
+                match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+                | 1 -> _X <- input.ReadInt32()
+                | _ -> input.SkipLastField()
+
+                tag <- input.ReadTag()
+
+            { X = _X }
+
+        let decode (data: byte array) : Inner =
+            use input = new Google.Protobuf.CodedInputStream(data)
+            decodeFrom input
+
+        let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Inner) : unit =
+            writer.WriteStartObject()
+
+            if value.X <> 0 then
+                writer.WriteNumber("x", value.X)
+
+            writer.WriteEndObject()
+
+        let encodeJson (value: Inner) : string =
+            use bufferWriter = new System.IO.MemoryStream()
+            use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+            writeJsonTo writer value
+            writer.Flush()
+            System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+        let decodeJsonElement (element: System.Text.Json.JsonElement) : Inner =
+            let mutable _X = 0
+
+            for prop in element.EnumerateObject() do
+                match prop.Name with
+                | "x" -> _X <- prop.Value.GetInt32()
+                | _ -> ()
+
+            { X = _X }
+
+        let decodeJson (json: string) : Inner =
+            use doc = System.Text.Json.JsonDocument.Parse(json)
+            decodeJsonElement doc.RootElement
+
     let empty = { LocalRef = None }
 
     let computeSize (value: Foo) : int =
@@ -86,7 +86,7 @@ module Foo =
 
         match value.LocalRef with
         | Some v ->
-            let subSize = Inner.computeSize v
+            let subSize = Foo.Inner.computeSize v
             size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
@@ -95,10 +95,10 @@ module Foo =
     let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Foo) : unit =
         match value.LocalRef with
         | Some v ->
-            let subSize = Inner.computeSize v
+            let subSize = Foo.Inner.computeSize v
             output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteLength(subSize)
-            Inner.writeTo output v
+            Foo.Inner.writeTo output v
         | None -> ()
 
     let encode (value: Foo) : byte array =
@@ -121,7 +121,7 @@ module Foo =
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _LocalRef <- Some(Inner.decodeFrom subInput)
+                _LocalRef <- Some(Foo.Inner.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
@@ -138,7 +138,7 @@ module Foo =
         match value.LocalRef with
         | Some v ->
             writer.WritePropertyName("localRef")
-            Inner.writeJsonTo writer v
+            Foo.Inner.writeJsonTo writer v
         | None -> ()
 
         writer.WriteEndObject()
@@ -155,8 +155,8 @@ module Foo =
 
         for prop in element.EnumerateObject() do
             match prop.Name with
-            | "localRef" -> _LocalRef <- Some(Inner.decodeJsonElement prop.Value)
-            | "local_ref" -> _LocalRef <- Some(Inner.decodeJsonElement prop.Value)
+            | "localRef" -> _LocalRef <- Some(Foo.Inner.decodeJsonElement prop.Value)
+            | "local_ref" -> _LocalRef <- Some(Foo.Inner.decodeJsonElement prop.Value)
             | _ -> ()
 
         { LocalRef = _LocalRef }
@@ -165,85 +165,85 @@ module Foo =
         use doc = System.Text.Json.JsonDocument.Parse(json)
         decodeJsonElement doc.RootElement
 
-type Inner = { Y: int }
-
-module Inner =
-    let empty = { Y = 0 }
-
-    let computeSize (value: Inner) : int =
-        let mutable size = 0
-
-        if value.Y <> 0 then
-            size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.Y)
-
-        size
-
-    let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Inner) : unit =
-        if value.Y <> 0 then
-            output.WriteTag(1, Google.Protobuf.WireFormat.WireType.Varint)
-            output.WriteInt32(value.Y)
-
-    let encode (value: Inner) : byte array =
-        let size = computeSize value
-
-        if size = 0 then
-            Array.empty
-        else
-            let buffer = Array.zeroCreate size
-            use output = new Google.Protobuf.CodedOutputStream(buffer)
-            writeTo output value
-            output.Flush()
-            buffer
-
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Inner =
-        let mutable _Y = 0
-        let mutable tag = input.ReadTag()
-
-        while tag <> 0u do
-            match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
-            | 1 -> _Y <- input.ReadInt32()
-            | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
-
-        { Y = _Y }
-
-    let decode (data: byte array) : Inner =
-        use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
-
-    let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Inner) : unit =
-        writer.WriteStartObject()
-
-        if value.Y <> 0 then
-            writer.WriteNumber("y", value.Y)
-
-        writer.WriteEndObject()
-
-    let encodeJson (value: Inner) : string =
-        use bufferWriter = new System.IO.MemoryStream()
-        use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
-        writeJsonTo writer value
-        writer.Flush()
-        System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
-
-    let decodeJsonElement (element: System.Text.Json.JsonElement) : Inner =
-        let mutable _Y = 0
-
-        for prop in element.EnumerateObject() do
-            match prop.Name with
-            | "y" -> _Y <- prop.Value.GetInt32()
-            | _ -> ()
-
-        { Y = _Y }
-
-    let decodeJson (json: string) : Inner =
-        use doc = System.Text.Json.JsonDocument.Parse(json)
-        decodeJsonElement doc.RootElement
-
-type Bar = { LocalRef: Inner option }
+type Bar = { LocalRef: Bar.Inner option }
 
 module Bar =
+    type Inner = { Y: int }
+
+    module Inner =
+        let empty = { Y = 0 }
+
+        let computeSize (value: Inner) : int =
+            let mutable size = 0
+
+            if value.Y <> 0 then
+                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeInt32Size(value.Y)
+
+            size
+
+        let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Inner) : unit =
+            if value.Y <> 0 then
+                output.WriteTag(1, Google.Protobuf.WireFormat.WireType.Varint)
+                output.WriteInt32(value.Y)
+
+        let encode (value: Inner) : byte array =
+            let size = computeSize value
+
+            if size = 0 then
+                Array.empty
+            else
+                let buffer = Array.zeroCreate size
+                use output = new Google.Protobuf.CodedOutputStream(buffer)
+                writeTo output value
+                output.Flush()
+                buffer
+
+        let decodeFrom (input: Google.Protobuf.CodedInputStream) : Inner =
+            let mutable _Y = 0
+            let mutable tag = input.ReadTag()
+
+            while tag <> 0u do
+                match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+                | 1 -> _Y <- input.ReadInt32()
+                | _ -> input.SkipLastField()
+
+                tag <- input.ReadTag()
+
+            { Y = _Y }
+
+        let decode (data: byte array) : Inner =
+            use input = new Google.Protobuf.CodedInputStream(data)
+            decodeFrom input
+
+        let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Inner) : unit =
+            writer.WriteStartObject()
+
+            if value.Y <> 0 then
+                writer.WriteNumber("y", value.Y)
+
+            writer.WriteEndObject()
+
+        let encodeJson (value: Inner) : string =
+            use bufferWriter = new System.IO.MemoryStream()
+            use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+            writeJsonTo writer value
+            writer.Flush()
+            System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+
+        let decodeJsonElement (element: System.Text.Json.JsonElement) : Inner =
+            let mutable _Y = 0
+
+            for prop in element.EnumerateObject() do
+                match prop.Name with
+                | "y" -> _Y <- prop.Value.GetInt32()
+                | _ -> ()
+
+            { Y = _Y }
+
+        let decodeJson (json: string) : Inner =
+            use doc = System.Text.Json.JsonDocument.Parse(json)
+            decodeJsonElement doc.RootElement
+
     let empty = { LocalRef = None }
 
     let computeSize (value: Bar) : int =
@@ -251,7 +251,7 @@ module Bar =
 
         match value.LocalRef with
         | Some v ->
-            let subSize = Inner.computeSize v
+            let subSize = Bar.Inner.computeSize v
             size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
@@ -260,10 +260,10 @@ module Bar =
     let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Bar) : unit =
         match value.LocalRef with
         | Some v ->
-            let subSize = Inner.computeSize v
+            let subSize = Bar.Inner.computeSize v
             output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteLength(subSize)
-            Inner.writeTo output v
+            Bar.Inner.writeTo output v
         | None -> ()
 
     let encode (value: Bar) : byte array =
@@ -286,7 +286,7 @@ module Bar =
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _LocalRef <- Some(Inner.decodeFrom subInput)
+                _LocalRef <- Some(Bar.Inner.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
@@ -303,7 +303,7 @@ module Bar =
         match value.LocalRef with
         | Some v ->
             writer.WritePropertyName("localRef")
-            Inner.writeJsonTo writer v
+            Bar.Inner.writeJsonTo writer v
         | None -> ()
 
         writer.WriteEndObject()
@@ -320,8 +320,8 @@ module Bar =
 
         for prop in element.EnumerateObject() do
             match prop.Name with
-            | "localRef" -> _LocalRef <- Some(Inner.decodeJsonElement prop.Value)
-            | "local_ref" -> _LocalRef <- Some(Inner.decodeJsonElement prop.Value)
+            | "localRef" -> _LocalRef <- Some(Bar.Inner.decodeJsonElement prop.Value)
+            | "local_ref" -> _LocalRef <- Some(Bar.Inner.decodeJsonElement prop.Value)
             | _ -> ()
 
         { LocalRef = _LocalRef }
