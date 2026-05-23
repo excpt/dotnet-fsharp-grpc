@@ -58,7 +58,17 @@ let private wrapInModule: Set<string> = Set.empty
 /// Snapshots skipped from type-check because of known generator bugs that can't
 /// be worked around with a prelude. The snapshot-equality test still runs, so
 /// regressions in the *current* (buggy) output are still caught.
-let private typeCheckSkip: Map<string, string> = Map.empty
+let private typeCheckSkip =
+    Map.ofList
+        [
+          // NestedCollision.proto exposes a *separate* generator deficiency:
+          // nested types are flattened to top-level without name disambiguation,
+          // so `Foo.Inner` and `Bar.Inner` both emit as `type Inner` at
+          // namespace scope → duplicate type. This snapshot's purpose is to
+          // pin the FQN-keyed forward-ref detection (`namespace Test` without
+          // `rec` proves no false-positive). The flattening collision is
+          // orthogonal and worth a separate fix.
+          "NestedCollision", "flat-namespace nested-type collision is a separate generator deficiency" ]
 
 let private assertTypeChecks (name: string) (actual: string) =
     match Map.tryFind name typeCheckSkip with
@@ -203,6 +213,17 @@ let ``message field generates option type`` () =
 [<Fact>]
 let ``complex proto with all features`` () =
     protoToFSharp "complex.proto" |> assertMatchesExpected "Complex"
+
+[<Fact>]
+let ``nested types with same simple name in different parents do not collide in forward-ref detection`` () =
+    // Regression: positionByFqn must be keyed on fully-qualified names. With a
+    // simple-name key, both `Foo.Inner` and `Bar.Inner` would collide
+    // (last-write-wins), and `Foo.localRef: Inner` would resolve to Bar.Inner's
+    // position — flagging a self-targeting back-ref as a forward ref and
+    // emitting an unnecessary `namespace rec`. The expected snapshot has plain
+    // `namespace test` (no `rec`); a regression would emit `rec`.
+    protoToFSharp "nested_collision.proto"
+    |> assertMatchesExpected "NestedCollision"
 
 [<Fact>]
 let ``proto importing another file resolves cross-file types`` () =

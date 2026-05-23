@@ -138,30 +138,76 @@ let rec private collectMessageTypes (msg: DescriptorProto) =
 
     nestedEnums @ nestedMessages @ messageToTypes msg
 
-/// True if any message in the file references another in-file message that's
-/// declared *after* it in the generator's output order. Such forward refs
-/// require `namespace rec` to compile — without `rec`, F# evaluates
+/// True if any message in the file references another in-file message or enum
+/// that's declared *after* it in the generator's output order. Such forward
+/// refs require `namespace rec` to compile — without `rec`, F# evaluates
 /// declarations top-down and a later type/module isn't yet in scope.
 ///
-/// Order matches `collectMessageTypes`: nested-first, then parent.
-/// Self-references (e.g. `User.manager: User`) don't need `rec` — record
-/// types are inherently self-recursive — so they're filtered out.
+/// Keyed on the fully-qualified proto name (e.g. `.example.Outer.Inner`) so
+/// nested types with the same simple name in different parents don't collide.
+/// Field `TypeName` is already FQN-shaped (protoc resolves it).
+///
+/// Order matches `generate`'s output: top-level enums first, then each top-level
+/// message's subtree (per `collectMessageTypes`: nested enums, nested messages
+/// recursively, then the message itself).
+///
+/// Self-references (e.g. `User.manager: User`) don't need `rec` — record types
+/// are inherently self-recursive — so the `>` (strict) comparison excludes them.
 let private needsRecursiveNamespace (file: FileDescriptorProto) : bool =
-    let rec messagesInOrder (msg: DescriptorProto) =
+    let buildFqn (parentFqn: string) (name: string) =
+        if parentFqn = "" then $".{name}" else $"{parentFqn}.{name}"
+
+    let packageFqn =
+        if System.String.IsNullOrEmpty file.Package then
+            ""
+        else
+            "." + file.Package
+
+    // Yield the FQN of every named type (enum or message) in the order it
+    // appears in generator output.
+    let rec messageSubtree (parentFqn: string) (msg: DescriptorProto) =
         seq {
+            let myFqn = buildFqn parentFqn msg.Name
+
+            for e in msg.EnumType do
+                yield buildFqn myFqn e.Name
+
             for nested in msg.NestedType do
                 if not (isMapEntry nested) then
-                    yield! messagesInOrder nested
+                    yield! messageSubtree myFqn nested
 
-            yield msg
+            yield myFqn
         }
 
-    let ordered = file.MessageType |> Seq.collect messagesInOrder |> Seq.toList
-    let positionByName = ordered |> List.mapi (fun i m -> m.Name, i) |> Map.ofList
+    let orderedFqns =
+        seq {
+            for e in file.EnumType do
+                yield buildFqn packageFqn e.Name
 
-    ordered
-    |> List.exists (fun msg ->
-        let myPos = positionByName.[msg.Name]
+            for m in file.MessageType do
+                yield! messageSubtree packageFqn m
+        }
+        |> Seq.toList
+
+    let positionByFqn = orderedFqns |> List.mapi (fun i fqn -> fqn, i) |> Map.ofList
+
+    // Re-walk to pair each message with its FQN; check its field refs against
+    // the position map.
+    let rec messagesWithFqn (parentFqn: string) (msg: DescriptorProto) =
+        seq {
+            let myFqn = buildFqn parentFqn msg.Name
+
+            for nested in msg.NestedType do
+                if not (isMapEntry nested) then
+                    yield! messagesWithFqn myFqn nested
+
+            yield (myFqn, msg)
+        }
+
+    file.MessageType
+    |> Seq.collect (messagesWithFqn packageFqn)
+    |> Seq.exists (fun (myFqn, msg) ->
+        let myPos = positionByFqn.[myFqn]
 
         msg.Field
         |> Seq.exists (fun f ->
@@ -169,9 +215,7 @@ let private needsRecursiveNamespace (file: FileDescriptorProto) : bool =
                 f.Type = FieldDescriptorProto.Types.Type.Message
                 || f.Type = FieldDescriptorProto.Types.Type.Enum
             then
-                let target = simpleTypeName f.TypeName
-
-                match Map.tryFind target positionByName with
+                match Map.tryFind f.TypeName positionByFqn with
                 | Some targetPos -> targetPos > myPos
                 | None -> false
             else
