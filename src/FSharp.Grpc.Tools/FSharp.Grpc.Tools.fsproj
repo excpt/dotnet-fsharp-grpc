@@ -18,6 +18,7 @@
         <Compile Include="JsonDecodeGen.fs"/>
         <Compile Include="ServiceGen.fs"/>
         <Compile Include="ProtoToAst.fs"/>
+        <Compile Include="Pipeline.fs"/>
     </ItemGroup>
 
     <ItemGroup>

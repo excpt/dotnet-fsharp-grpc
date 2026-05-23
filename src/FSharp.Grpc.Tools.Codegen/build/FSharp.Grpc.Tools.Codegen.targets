@@ -3,12 +3,12 @@
     <!-- Stable output dir using BaseIntermediateOutputPath (obj/) so IDE and build agree -->
     <PropertyGroup>
         <FSharpGrpc_OutputDir Condition="'$(FSharpGrpc_OutputDir)' == ''">$(BaseIntermediateOutputPath)protos/</FSharpGrpc_OutputDir>
+        <FSharpGrpc_ManifestPath>$(FSharpGrpc_OutputDir)FSharpGrpc.GeneratedFiles.props</FSharpGrpc_ManifestPath>
     </PropertyGroup>
 
-    <!-- Static Compile items for IDE intellisense (after first build, files exist here) -->
-    <ItemGroup>
-        <Compile Include="$(FSharpGrpc_OutputDir)*.generated.fs"/>
-    </ItemGroup>
+    <!-- Static import: the codegen writes <Compile Include> items in dependency order.
+         Available after the first build; on first build it's populated dynamically below. -->
+    <Import Project="$(FSharpGrpc_ManifestPath)" Condition="Exists('$(FSharpGrpc_ManifestPath)')"/>
 
     <!-- Resolve protoc from Grpc.Tools NuGet package -->
     <Target Name="_FSharpGrpc_ResolveProtoc"
@@ -40,42 +40,54 @@
         <_FSharpGrpc_CodegenDll Condition="!Exists('$(_FSharpGrpc_CodegenDll)')">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'bin', '$(Configuration)', 'net8.0', 'FSharp.Grpc.Tools.Codegen.dll'))</_FSharpGrpc_CodegenDll>
     </PropertyGroup>
 
-    <!-- Generate F# from .proto files -->
+    <!-- Generate F# from .proto files (single invocation; codegen writes ordered manifest).
+         All <Protobuf> items must share the same GrpcServices value within a project. -->
     <Target Name="FSharpGrpc_GenerateProto"
             BeforeTargets="BeforeCompile"
             DependsOnTargets="_FSharpGrpc_ResolveProtoc"
             Condition="'@(Protobuf)' != ''"
             Inputs="@(Protobuf)"
-            Outputs="@(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).generated.fs');
-                     @(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).server.generated.fs');
-                     @(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).client.generated.fs')">
+            Outputs="$(FSharpGrpc_ManifestPath)">
 
         <MakeDir Directories="$(FSharpGrpc_OutputDir)"/>
 
         <PropertyGroup>
-            <_FSharpGrpc_ProtocArg Condition="'$(FSharpGrpc_ProtocFullPath)' != ''">--protoc "$(FSharpGrpc_ProtocFullPath)"</_FSharpGrpc_ProtocArg>
-            <_FSharpGrpc_WktArg Condition="'$(FSharpGrpc_WktPath)' != ''">--proto-path "$(FSharpGrpc_WktPath)"</_FSharpGrpc_WktArg>
-            <_FSharpGrpc_GrpcServicesArg Condition="'%(Protobuf.GrpcServices)' != ''">--grpc-services %(Protobuf.GrpcServices)</_FSharpGrpc_GrpcServicesArg>
+            <_FSharpGrpc_DistinctServices>@(Protobuf->'%(GrpcServices)'->Distinct())</_FSharpGrpc_DistinctServices>
         </PropertyGroup>
 
-        <Exec Command="dotnet &quot;$(_FSharpGrpc_CodegenDll)&quot; $(_FSharpGrpc_ProtocArg) $(_FSharpGrpc_WktArg) $(_FSharpGrpc_GrpcServicesArg) --output-dir &quot;$(FSharpGrpc_OutputDir)&quot; &quot;%(Protobuf.FullPath)&quot;"
+        <Error
+            Text="All &lt;Protobuf&gt; items must share the same GrpcServices value, but got: $(_FSharpGrpc_DistinctServices)"
+            Condition="$(_FSharpGrpc_DistinctServices.Contains(';'))"/>
+
+        <PropertyGroup>
+            <_FSharpGrpc_ProtocArg Condition="'$(FSharpGrpc_ProtocFullPath)' != ''">--protoc "$(FSharpGrpc_ProtocFullPath)"</_FSharpGrpc_ProtocArg>
+            <_FSharpGrpc_WktArg Condition="'$(FSharpGrpc_WktPath)' != ''">--proto-path "$(FSharpGrpc_WktPath)"</_FSharpGrpc_WktArg>
+            <_FSharpGrpc_GrpcServicesArg Condition="'$(_FSharpGrpc_DistinctServices)' != ''">--grpc-services $(_FSharpGrpc_DistinctServices)</_FSharpGrpc_GrpcServicesArg>
+            <_FSharpGrpc_ProtoFiles>@(Protobuf->'&quot;%(FullPath)&quot;', ' ')</_FSharpGrpc_ProtoFiles>
+        </PropertyGroup>
+
+        <Exec Command="dotnet &quot;$(_FSharpGrpc_CodegenDll)&quot; $(_FSharpGrpc_ProtocArg) $(_FSharpGrpc_WktArg) $(_FSharpGrpc_GrpcServicesArg) --output-dir &quot;$(FSharpGrpc_OutputDir)&quot; $(_FSharpGrpc_ProtoFiles)"
               StandardOutputImportance="low"/>
     </Target>
 
-    <!-- F# compile ordering: generated files BEFORE user code -->
+    <!-- After codegen, re-read the manifest and put generated files BEFORE user code.
+         Re-reading at build time handles first-build (no static import) and changed proto sets. -->
     <Target Name="_FSharpGrpc_PrependCompile"
             BeforeTargets="BeforeCompile"
             DependsOnTargets="FSharpGrpc_GenerateProto"
-            Condition="'@(Protobuf)' != ''">
+            Condition="'@(Protobuf)' != '' and Exists('$(FSharpGrpc_ManifestPath)')">
+
+        <XmlPeek XmlInputPath="$(FSharpGrpc_ManifestPath)" Query="/Project/ItemGroup/Compile/@Include">
+            <Output TaskParameter="Result" ItemName="_FSharpGrpc_GeneratedCompile"/>
+        </XmlPeek>
 
         <ItemGroup>
-            <!-- Remove the statically-added generated files (IDE put them at the end) -->
-            <Compile Remove="$(FSharpGrpc_OutputDir)*.generated.fs"/>
-            <!-- Snapshot user files -->
+            <!-- Drop stale entries the static <Import> may have brought in -->
+            <Compile Remove="@(_FSharpGrpc_GeneratedCompile)"/>
+            <!-- Snapshot user code, then reorder: generated first, user after -->
             <_FSharpGrpc_UserCompile Include="@(Compile)"/>
-            <!-- Rebuild: generated first, then user code -->
             <Compile Remove="@(Compile)"/>
-            <Compile Include="$(FSharpGrpc_OutputDir)*.generated.fs"/>
+            <Compile Include="@(_FSharpGrpc_GeneratedCompile)"/>
             <Compile Include="@(_FSharpGrpc_UserCompile)"/>
         </ItemGroup>
     </Target>
@@ -90,6 +102,7 @@
                 TreatErrorsAsWarnings="true"/>
         <Delete Files="@(Protobuf -> '$(FSharpGrpc_OutputDir)%(Filename).client.generated.fs')"
                 TreatErrorsAsWarnings="true"/>
+        <Delete Files="$(FSharpGrpc_ManifestPath)" TreatErrorsAsWarnings="true"/>
     </Target>
 
 </Project>

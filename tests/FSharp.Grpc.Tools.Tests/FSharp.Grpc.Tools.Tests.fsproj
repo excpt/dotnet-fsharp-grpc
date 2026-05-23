@@ -12,6 +12,7 @@
         <Compile Include="FabulousAstTests.fs"/>
         <Compile Include="ProtoToAstTests.fs"/>
         <Compile Include="ServiceGenTests.fs"/>
+        <Compile Include="PipelineTests.fs"/>
     </ItemGroup>
 
     <ItemGroup>
