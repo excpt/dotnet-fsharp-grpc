@@ -1,5 +1,7 @@
 namespace Billing
 
+open Shared
+
 type Invoice =
     { Id: string
       Total: Money option
