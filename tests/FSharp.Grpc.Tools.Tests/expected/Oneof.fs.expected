@@ -104,7 +104,7 @@ type PaymentMethod =
     | SignedToken of signedToken: byte array
     | Currency of currency: Currency
     | Card of card: Card
-    | Voucher of voucher: Payment.Voucher
+    | Voucher of voucher: Payment.Types.Voucher
 
 type PaymentChannel =
     | Web of web: string
@@ -116,81 +116,82 @@ type Payment =
       Channel: PaymentChannel option }
 
 module Payment =
-    type Voucher = { Code: string }
+    module Types =
+        type Voucher = { Code: string }
 
-    module Voucher =
-        let empty = { Code = "" }
+        module Voucher =
+            let empty = { Code = "" }
 
-        let computeSize (value: Voucher) : int =
-            let mutable size = 0
+            let computeSize (value: Voucher) : int =
+                let mutable size = 0
 
-            if value.Code <> "" then
-                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Code)
+                if value.Code <> "" then
+                    size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Code)
 
-            size
+                size
 
-        let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Voucher) : unit =
-            if value.Code <> "" then
-                output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-                output.WriteString(value.Code)
+            let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Voucher) : unit =
+                if value.Code <> "" then
+                    output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                    output.WriteString(value.Code)
 
-        let encode (value: Voucher) : byte array =
-            let size = computeSize value
+            let encode (value: Voucher) : byte array =
+                let size = computeSize value
 
-            if size = 0 then
-                Array.empty
-            else
-                let buffer = Array.zeroCreate size
-                use output = new Google.Protobuf.CodedOutputStream(buffer)
-                writeTo output value
-                output.Flush()
-                buffer
+                if size = 0 then
+                    Array.empty
+                else
+                    let buffer = Array.zeroCreate size
+                    use output = new Google.Protobuf.CodedOutputStream(buffer)
+                    writeTo output value
+                    output.Flush()
+                    buffer
 
-        let decodeFrom (input: Google.Protobuf.CodedInputStream) : Voucher =
-            let mutable _Code = ""
-            let mutable tag = input.ReadTag()
+            let decodeFrom (input: Google.Protobuf.CodedInputStream) : Voucher =
+                let mutable _Code = ""
+                let mutable tag = input.ReadTag()
 
-            while tag <> 0u do
-                match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
-                | 1 -> _Code <- input.ReadString()
-                | _ -> input.SkipLastField()
+                while tag <> 0u do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+                    | 1 -> _Code <- input.ReadString()
+                    | _ -> input.SkipLastField()
 
-                tag <- input.ReadTag()
+                    tag <- input.ReadTag()
 
-            { Code = _Code }
+                { Code = _Code }
 
-        let decode (data: byte array) : Voucher =
-            use input = new Google.Protobuf.CodedInputStream(data)
-            decodeFrom input
+            let decode (data: byte array) : Voucher =
+                use input = new Google.Protobuf.CodedInputStream(data)
+                decodeFrom input
 
-        let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Voucher) : unit =
-            writer.WriteStartObject()
+            let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Voucher) : unit =
+                writer.WriteStartObject()
 
-            if value.Code <> "" then
-                writer.WriteString("code", value.Code)
+                if value.Code <> "" then
+                    writer.WriteString("code", value.Code)
 
-            writer.WriteEndObject()
+                writer.WriteEndObject()
 
-        let encodeJson (value: Voucher) : string =
-            use bufferWriter = new System.IO.MemoryStream()
-            use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
-            writeJsonTo writer value
-            writer.Flush()
-            System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+            let encodeJson (value: Voucher) : string =
+                use bufferWriter = new System.IO.MemoryStream()
+                use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+                writeJsonTo writer value
+                writer.Flush()
+                System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
 
-        let decodeJsonElement (element: System.Text.Json.JsonElement) : Voucher =
-            let mutable _Code = ""
+            let decodeJsonElement (element: System.Text.Json.JsonElement) : Voucher =
+                let mutable _Code = ""
 
-            for prop in element.EnumerateObject() do
-                match prop.Name with
-                | "code" -> _Code <- prop.Value.GetString()
-                | _ -> ()
+                for prop in element.EnumerateObject() do
+                    match prop.Name with
+                    | "code" -> _Code <- prop.Value.GetString()
+                    | _ -> ()
 
-            { Code = _Code }
+                { Code = _Code }
 
-        let decodeJson (json: string) : Voucher =
-            use doc = System.Text.Json.JsonDocument.Parse(json)
-            decodeJsonElement doc.RootElement
+            let decodeJson (json: string) : Voucher =
+                use doc = System.Text.Json.JsonDocument.Parse(json)
+                decodeJsonElement doc.RootElement
 
     let empty =
         { Id = ""
@@ -220,7 +221,7 @@ module Payment =
                 let subSize = Card.computeSize v
                 size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(7) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
             | PaymentMethod.Voucher v ->
-                let subSize = Payment.Voucher.computeSize v
+                let subSize = Types.Voucher.computeSize v
                 size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(8) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
@@ -265,10 +266,10 @@ module Payment =
                 output.WriteLength(subSize)
                 Card.writeTo output v
             | PaymentMethod.Voucher v ->
-                let subSize = Payment.Voucher.computeSize v
+                let subSize = Types.Voucher.computeSize v
                 output.WriteTag(8, Google.Protobuf.WireFormat.WireType.LengthDelimited)
                 output.WriteLength(subSize)
-                Payment.Voucher.writeTo output v
+                Types.Voucher.writeTo output v
         | None -> ()
 
         match value.Channel with
@@ -315,7 +316,7 @@ module Payment =
                 _Method <- Some(PaymentMethod.Card(Card.decodeFrom subInput))
             | 8 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _Method <- Some(PaymentMethod.Voucher(Payment.Voucher.decodeFrom subInput))
+                _Method <- Some(PaymentMethod.Voucher(Types.Voucher.decodeFrom subInput))
             | 9 -> _Channel <- Some(PaymentChannel.Web(input.ReadString()))
             | 10 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
@@ -351,7 +352,7 @@ module Payment =
                 Card.writeJsonTo writer v
             | PaymentMethod.Voucher v ->
                 writer.WritePropertyName("voucher")
-                Payment.Voucher.writeJsonTo writer v
+                Types.Voucher.writeJsonTo writer v
         | None -> ()
 
         match value.Channel with
@@ -398,7 +399,7 @@ module Payment =
                 _Method <-
                     Some(PaymentMethod.Currency(Currency.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())))
             | "card" -> _Method <- Some(PaymentMethod.Card(Card.decodeJsonElement prop.Value))
-            | "voucher" -> _Method <- Some(PaymentMethod.Voucher(Payment.Voucher.decodeJsonElement prop.Value))
+            | "voucher" -> _Method <- Some(PaymentMethod.Voucher(Types.Voucher.decodeJsonElement prop.Value))
             | "web" -> _Channel <- Some(PaymentChannel.Web(prop.Value.GetString()))
             | "mobileCard" -> _Channel <- Some(PaymentChannel.MobileCard(Card.decodeJsonElement prop.Value))
             | "mobile_card" -> _Channel <- Some(PaymentChannel.MobileCard(Card.decodeJsonElement prop.Value))

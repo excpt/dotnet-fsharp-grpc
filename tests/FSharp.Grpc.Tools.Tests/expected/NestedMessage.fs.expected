@@ -2,84 +2,85 @@ namespace rec Example
 
 type Outer =
     { Name: string
-      Inner: Outer.Inner option }
+      Inner: Outer.Types.Inner option }
 
 module Outer =
-    type Inner = { Value: string }
+    module Types =
+        type Inner = { Value: string }
 
-    module Inner =
-        let empty = { Value = "" }
+        module Inner =
+            let empty = { Value = "" }
 
-        let computeSize (value: Inner) : int =
-            let mutable size = 0
+            let computeSize (value: Inner) : int =
+                let mutable size = 0
 
-            if value.Value <> "" then
-                size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Value)
+                if value.Value <> "" then
+                    size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + Google.Protobuf.CodedOutputStream.ComputeStringSize(value.Value)
 
-            size
+                size
 
-        let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Inner) : unit =
-            if value.Value <> "" then
-                output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
-                output.WriteString(value.Value)
+            let writeTo (output: Google.Protobuf.CodedOutputStream) (value: Inner) : unit =
+                if value.Value <> "" then
+                    output.WriteTag(1, Google.Protobuf.WireFormat.WireType.LengthDelimited)
+                    output.WriteString(value.Value)
 
-        let encode (value: Inner) : byte array =
-            let size = computeSize value
+            let encode (value: Inner) : byte array =
+                let size = computeSize value
 
-            if size = 0 then
-                Array.empty
-            else
-                let buffer = Array.zeroCreate size
-                use output = new Google.Protobuf.CodedOutputStream(buffer)
-                writeTo output value
-                output.Flush()
-                buffer
+                if size = 0 then
+                    Array.empty
+                else
+                    let buffer = Array.zeroCreate size
+                    use output = new Google.Protobuf.CodedOutputStream(buffer)
+                    writeTo output value
+                    output.Flush()
+                    buffer
 
-        let decodeFrom (input: Google.Protobuf.CodedInputStream) : Inner =
-            let mutable _Value = ""
-            let mutable tag = input.ReadTag()
+            let decodeFrom (input: Google.Protobuf.CodedInputStream) : Inner =
+                let mutable _Value = ""
+                let mutable tag = input.ReadTag()
 
-            while tag <> 0u do
-                match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
-                | 1 -> _Value <- input.ReadString()
-                | _ -> input.SkipLastField()
+                while tag <> 0u do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
+                    | 1 -> _Value <- input.ReadString()
+                    | _ -> input.SkipLastField()
 
-                tag <- input.ReadTag()
+                    tag <- input.ReadTag()
 
-            { Value = _Value }
+                { Value = _Value }
 
-        let decode (data: byte array) : Inner =
-            use input = new Google.Protobuf.CodedInputStream(data)
-            decodeFrom input
+            let decode (data: byte array) : Inner =
+                use input = new Google.Protobuf.CodedInputStream(data)
+                decodeFrom input
 
-        let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Inner) : unit =
-            writer.WriteStartObject()
+            let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Inner) : unit =
+                writer.WriteStartObject()
 
-            if value.Value <> "" then
-                writer.WriteString("value", value.Value)
+                if value.Value <> "" then
+                    writer.WriteString("value", value.Value)
 
-            writer.WriteEndObject()
+                writer.WriteEndObject()
 
-        let encodeJson (value: Inner) : string =
-            use bufferWriter = new System.IO.MemoryStream()
-            use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
-            writeJsonTo writer value
-            writer.Flush()
-            System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
+            let encodeJson (value: Inner) : string =
+                use bufferWriter = new System.IO.MemoryStream()
+                use writer = new System.Text.Json.Utf8JsonWriter(bufferWriter)
+                writeJsonTo writer value
+                writer.Flush()
+                System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
 
-        let decodeJsonElement (element: System.Text.Json.JsonElement) : Inner =
-            let mutable _Value = ""
+            let decodeJsonElement (element: System.Text.Json.JsonElement) : Inner =
+                let mutable _Value = ""
 
-            for prop in element.EnumerateObject() do
-                match prop.Name with
-                | "value" -> _Value <- prop.Value.GetString()
-                | _ -> ()
+                for prop in element.EnumerateObject() do
+                    match prop.Name with
+                    | "value" -> _Value <- prop.Value.GetString()
+                    | _ -> ()
 
-            { Value = _Value }
+                { Value = _Value }
 
-        let decodeJson (json: string) : Inner =
-            use doc = System.Text.Json.JsonDocument.Parse(json)
-            decodeJsonElement doc.RootElement
+            let decodeJson (json: string) : Inner =
+                use doc = System.Text.Json.JsonDocument.Parse(json)
+                decodeJsonElement doc.RootElement
 
     let empty = { Name = ""; Inner = None }
 
@@ -91,7 +92,7 @@ module Outer =
 
         match value.Inner with
         | Some v ->
-            let subSize = Outer.Inner.computeSize v
+            let subSize = Types.Inner.computeSize v
             size <- size + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize
         | None -> ()
 
@@ -104,10 +105,10 @@ module Outer =
 
         match value.Inner with
         | Some v ->
-            let subSize = Outer.Inner.computeSize v
+            let subSize = Types.Inner.computeSize v
             output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)
             output.WriteLength(subSize)
-            Outer.Inner.writeTo output v
+            Types.Inner.writeTo output v
         | None -> ()
 
     let encode (value: Outer) : byte array =
@@ -132,7 +133,7 @@ module Outer =
             | 1 -> _Name <- input.ReadString()
             | 2 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _Inner <- Some(Outer.Inner.decodeFrom subInput)
+                _Inner <- Some(Types.Inner.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
@@ -152,7 +153,7 @@ module Outer =
         match value.Inner with
         | Some v ->
             writer.WritePropertyName("inner")
-            Outer.Inner.writeJsonTo writer v
+            Types.Inner.writeJsonTo writer v
         | None -> ()
 
         writer.WriteEndObject()
@@ -171,7 +172,7 @@ module Outer =
         for prop in element.EnumerateObject() do
             match prop.Name with
             | "name" -> _Name <- prop.Value.GetString()
-            | "inner" -> _Inner <- Some(Outer.Inner.decodeJsonElement prop.Value)
+            | "inner" -> _Inner <- Some(Types.Inner.decodeJsonElement prop.Value)
             | _ -> ()
 
         { Name = _Name; Inner = _Inner }
