@@ -1,0 +1,22 @@
+// Regression for the forward-ref detection: two messages each have a nested
+// `Inner` with the same simple name. The forward-ref detection must key its
+// position map by fully-qualified name; otherwise the two `Inner`s collide
+// (last-write-wins) and a self-targeting local ref gets misclassified as a
+// cross-message forward ref, producing an unnecessary `namespace rec`.
+
+syntax = "proto3";
+package test;
+
+message Foo {
+  message Inner {
+    int32 x = 1;
+  }
+  Inner local_ref = 1;
+}
+
+message Bar {
+  message Inner {
+    int32 y = 1;
+  }
+  Inner local_ref = 1;
+}
