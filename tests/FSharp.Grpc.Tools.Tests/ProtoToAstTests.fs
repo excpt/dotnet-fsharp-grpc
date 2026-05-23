@@ -53,9 +53,9 @@ module Money =
 """ ]
 
 /// Snapshots whose generated source lacks a top-level namespace/module declaration.
-/// Tracked in issue #7 (no-package protos emit invalid library F#). Wrap in a
-/// synthetic module so the snapshot type-checks.
-let private wrapInModule = Set.ofList [ "NoPackage" ]
+/// Fix #7 removed the previous "NoPackage" entry; the generator now emits
+/// `namespace {FileName}` for protos without a package.
+let private wrapInModule: Set<string> = Set.empty
 
 /// Snapshots skipped from type-check because of known generator bugs that can't
 /// be worked around with a prelude. The snapshot-equality test still runs, so
@@ -151,7 +151,7 @@ let ``all scalar field types map to correct F# types`` () =
     protoToFSharp "scalar_types.proto" |> assertMatchesExpected "ScalarTypes"
 
 [<Fact>]
-let ``proto without package generates anonymous module`` () =
+let ``proto without package generates namespace from file name`` () =
     protoToFSharp "no_package.proto" |> assertMatchesExpected "NoPackage"
 
 [<Fact>]
