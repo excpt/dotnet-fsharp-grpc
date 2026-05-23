@@ -119,7 +119,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                                         | "int" -> "prop.Value.GetInt32()"
                                         | "uint32" -> "prop.Value.GetUInt32()"
                                         | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
-                                        | _ -> "prop.Value.GetInt32()"
+                                        | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
 
                                     clauses.Add(
                                         MatchClauseExpr(
@@ -338,7 +338,7 @@ let generateDecodeJsonElementAST (msg: DescriptorProto) =
                             | "int" -> "prop.Value.GetInt32()"
                             | "uint32" -> "prop.Value.GetUInt32()"
                             | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
-                            | _ -> "prop.Value.GetInt32()"
+                            | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
 
                         clauses.Add(
                             MatchClauseExpr(
