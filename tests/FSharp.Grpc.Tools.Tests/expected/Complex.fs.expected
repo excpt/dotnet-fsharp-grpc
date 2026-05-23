@@ -1,4 +1,4 @@
-namespace Acme.Platform.V1
+namespace rec Acme.Platform.V1
 
 type UserStatus =
     | UserStatusUnknown = 0
