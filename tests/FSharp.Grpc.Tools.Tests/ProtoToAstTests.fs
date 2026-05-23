@@ -61,14 +61,13 @@ let private wrapInModule: Set<string> = Set.empty
 let private typeCheckSkip =
     Map.ofList
         [
-          // NestedCollision.proto exposes a *separate* generator deficiency:
-          // nested types are flattened to top-level without name disambiguation,
-          // so `Foo.Inner` and `Bar.Inner` both emit as `type Inner` at
-          // namespace scope → duplicate type. This snapshot's purpose is to
-          // pin the FQN-keyed forward-ref detection (`namespace Test` without
-          // `rec` proves no false-positive). The flattening collision is
-          // orthogonal and worth a separate fix.
-          "NestedCollision", "flat-namespace nested-type collision is a separate generator deficiency" ]
+          // Tracked in issue #13 (nested-type flattening doesn't disambiguate
+          // same-name types in different parents). NestedCollision.proto's purpose
+          // is to pin the FQN-keyed forward-ref detection (`namespace Test`
+          // without `rec` proves no false-positive); the flattening collision is
+          // orthogonal — both `Foo.Inner` and `Bar.Inner` emit as `type Inner`
+          // at namespace scope, producing a duplicate type definition.
+          "NestedCollision", "see issue #13: nested-type flattening name collision" ]
 
 let private assertTypeChecks (name: string) (actual: string) =
     match Map.tryFind name typeCheckSkip with
