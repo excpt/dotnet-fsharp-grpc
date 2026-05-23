@@ -58,16 +58,7 @@ let private wrapInModule: Set<string> = Set.empty
 /// Snapshots skipped from type-check because of known generator bugs that can't
 /// be worked around with a prelude. The snapshot-equality test still runs, so
 /// regressions in the *current* (buggy) output are still caught.
-let private typeCheckSkip =
-    Map.ofList
-        [
-          // Tracked in issue #13 (nested-type flattening doesn't disambiguate
-          // same-name types in different parents). NestedCollision.proto's purpose
-          // is to pin the FQN-keyed forward-ref detection (`namespace Test`
-          // without `rec` proves no false-positive); the flattening collision is
-          // orthogonal — both `Foo.Inner` and `Bar.Inner` emit as `type Inner`
-          // at namespace scope, producing a duplicate type definition.
-          "NestedCollision", "see issue #13: nested-type flattening name collision" ]
+let private typeCheckSkip : Map<string, string> = Map.empty
 
 let private assertTypeChecks (name: string) (actual: string) =
     match Map.tryFind name typeCheckSkip with
@@ -173,7 +164,7 @@ let ``nested package maps to dotted F# namespace`` () =
     protoToFSharp "nested_package.proto" |> assertMatchesExpected "NestedPackage"
 
 [<Fact>]
-let ``nested message is flattened to top-level record`` () =
+let ``nested message is emitted inside parent module`` () =
     protoToFSharp "nested_message.proto" |> assertMatchesExpected "NestedMessage"
 
 [<Fact>]
