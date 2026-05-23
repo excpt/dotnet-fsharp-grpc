@@ -177,6 +177,72 @@ let private needsRecursiveNamespace (file: FileDescriptorProto) : bool =
             else
                 false))
 
+/// Extract the package portion of a fully-qualified proto type name
+/// (e.g. ".shared.Money" -> Some "Shared"; ".example.users.User" -> Some "Example.Users";
+///  ".TopLevelType" -> None). Package segments are recognised by their
+/// lowercase first letter; type segments start with an uppercase letter.
+let private extractPackage (typeName: string) : string option =
+    let parts = typeName.TrimStart('.').Split('.')
+
+    let packageParts =
+        parts |> Array.takeWhile (fun p -> p.Length > 0 && System.Char.IsLower p.[0])
+
+    if packageParts.Length = 0 then
+        None
+    else
+        Some(packageParts |> Array.map toPascalCase |> String.concat ".")
+
+/// Walk every field of every message (including nested) and every service
+/// method's input/output type, collecting the set of *other* F# namespaces
+/// the generated file references. Used to emit `open` statements so
+/// cross-package type references resolve.
+///
+/// Skipped:
+///   - google.protobuf.* — WKT and wrapper types are emitted with their
+///     fully-qualified F# names directly, so no `open` is needed.
+///   - the file's own package — already in scope.
+let private collectImportedPackages (file: FileDescriptorProto) : string list =
+    let currentPackage = toNamespace file.Package
+
+    let typeRefOf (f: FieldDescriptorProto) =
+        if
+            f.Type = FieldDescriptorProto.Types.Type.Message
+            || f.Type = FieldDescriptorProto.Types.Type.Enum
+        then
+            Some f.TypeName
+        else
+            None
+
+    let rec messageTypeNames (msg: DescriptorProto) =
+        seq {
+            for f in msg.Field do
+                match typeRefOf f with
+                | Some tn -> yield tn
+                | None -> ()
+
+            for nested in msg.NestedType do
+                yield! messageTypeNames nested
+        }
+
+    let serviceTypeNames =
+        seq {
+            for svc in file.Service do
+                for m in svc.Method do
+                    yield m.InputType
+                    yield m.OutputType
+        }
+
+    let allTypeRefs =
+        Seq.append (file.MessageType |> Seq.collect messageTypeNames) serviceTypeNames
+
+    allTypeRefs
+    |> Seq.choose extractPackage
+    |> Seq.filter (fun pkg -> not (pkg.StartsWith "Google.Protobuf"))
+    |> Seq.filter (fun pkg -> Some pkg <> currentPackage)
+    |> Seq.distinct
+    |> Seq.sort
+    |> Seq.toList
+
 /// Converts a FileDescriptorProto into a Fabulous.AST Oak widget
 /// that represents the generated F# source file.
 let generate (file: FileDescriptorProto) : WidgetBuilder<Oak> =
@@ -189,11 +255,15 @@ let generate (file: FileDescriptorProto) : WidgetBuilder<Oak> =
 
     let allTypes = enums @ messageTypes
     let needsRec = needsRecursiveNamespace file
+    let imports = collectImportedPackages file
 
     match toNamespace file.Package with
     | Some ns ->
         let nsBlock =
             Namespace(ns) {
+                for pkg in imports do
+                    Open(pkg)
+
                 for t in allTypes do
                     match t with
                     | EnumDef e -> e
@@ -213,6 +283,9 @@ let generate (file: FileDescriptorProto) : WidgetBuilder<Oak> =
 
         Oak() {
             Namespace(ns) {
+                for pkg in imports do
+                    Open(pkg)
+
                 for t in allTypes do
                     match t with
                     | EnumDef e -> e

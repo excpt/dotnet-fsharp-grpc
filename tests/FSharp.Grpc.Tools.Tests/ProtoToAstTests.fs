@@ -29,18 +29,16 @@ let private assertValidFSharpSyntax (code: string) =
     |> Async.RunSynchronously
     |> should be True
 
-/// Snapshots that need extra context to type-check. Each entry is a workaround
-/// for a tracked generator deficiency — without these, the snapshot would fail
-/// to type-check standalone (consumers hit the same issue at build time).
+/// Snapshots that legitimately reference types from a sibling proto file
+/// (which has its own generated .fs). Real consumers compile those side-by-side;
+/// to type-check the snapshot in isolation we stub the dependency here.
 let private typeCheckPrelude =
     Map.ofList
         [
-          // Imports.fs.expected references `Money` unqualified, but Money is
-          // generated in `namespace Shared`, not `namespace Billing`. Tracked
-          // in issue #6 (cross-file type references without namespace or open).
-          // Stub Money here so the snapshot type-checks in isolation.
+          // Imports.fs.expected has `open Shared` and references Money — Money
+          // lives in shared.proto's generated output (namespace Shared). Stub it.
           "Imports",
-          """namespace Billing
+          """namespace Shared
 
 type Money = { AmountMicros: int64; Currency: int }
 
