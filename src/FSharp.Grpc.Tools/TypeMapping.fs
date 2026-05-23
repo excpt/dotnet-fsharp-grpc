@@ -37,16 +37,21 @@ let private typeSegments (typeName: string) =
 let typePath (typeName: string) =
     typeSegments typeName |> String.concat ".Types."
 
-/// Build the reference path the generator should emit for a type, choosing
-/// between a relative (`Types.X` from inside the parent's module) and an
-/// absolute (`typePath`) form based on whether the target is nested inside
-/// the message we're currently generating code for.
+/// Build the reference path the generator should emit for a type, picking the
+/// shortest form that resolves in the current scope. Three cases:
+///   - target nested inside current msg -> "Types.X..." (relative; in scope)
+///   - target is a sibling under the same parent -> bare leaf name
+///     (parent's Types module is the surrounding scope)
+///   - everything else -> absolute `typePath`
 ///
 /// E.g. with currentMsgFqn ".pkg.Outer":
-///   ".pkg.Outer.Inner" -> "Types.Inner"        (relative; in scope inside Outer)
+///   ".pkg.Outer.Inner" -> "Types.Inner"        (own nested)
 ///   ".pkg.Outer.Inner.Deep" -> "Types.Inner.Types.Deep"
-///   ".pkg.User" -> "User"                       (absolute; cross-message)
-///   ".pkg.Org.Dept" -> "Org.Types.Dept"         (absolute; cross-message nested)
+///   ".pkg.User" -> "User"                       (sibling at namespace level)
+///   ".pkg.Org.Dept" -> "Org.Types.Dept"         (cross-message nested)
+///
+/// E.g. with currentMsgFqn ".pkg.Outer.Inner" (deeply nested):
+///   ".pkg.Outer.OtherInner" -> "OtherInner"     (sibling under Outer.Types)
 let qualifiedRef (currentMsgFqn: string) (targetTypeName: string) =
     let prefix = currentMsgFqn + "."
 
@@ -54,7 +59,19 @@ let qualifiedRef (currentMsgFqn: string) (targetTypeName: string) =
         let rest = targetTypeName.Substring(prefix.Length)
         "Types." + (rest.Split('.') |> String.concat ".Types.")
     else
-        typePath targetTypeName
+        let parentOf (fqn: string) =
+            match fqn.LastIndexOf('.') with
+            | -1 -> ""
+            | i -> fqn.Substring(0, i)
+
+        let currentParent = parentOf currentMsgFqn
+        let targetParent = parentOf targetTypeName
+
+        if currentParent <> "" && currentParent = targetParent then
+            // Sibling — the leaf name resolves in the current surrounding scope.
+            targetTypeName.Substring(currentParent.Length + 1)
+        else
+            typePath targetTypeName
 
 /// Check if a nested type is a synthetic map entry.
 let isMapEntry (nested: DescriptorProto) =

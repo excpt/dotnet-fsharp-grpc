@@ -191,15 +191,22 @@ let private needsRecursiveNamespace (file: FileDescriptorProto) : bool =
     // With the new nested layout, any message that has nested message/enum
     // types forces `rec` — the parent record forward-references its own
     // `Parent.Types.Inner`, which is declared later inside the companion
-    // module.
+    // module. Single-walk: a real nested message (not a synthetic map entry),
+    // a nested enum, or a recursive hit anywhere in the subtree.
     let rec hasAnyNestedType (msg: DescriptorProto) =
-        (msg.NestedType |> Seq.exists (not << isMapEntry))
-        || (msg.EnumType |> Seq.isEmpty |> not)
-        || (msg.NestedType |> Seq.exists hasAnyNestedType)
+        not (Seq.isEmpty msg.EnumType)
+        || (msg.NestedType |> Seq.exists (fun n -> not (isMapEntry n) || hasAnyNestedType n))
 
     if file.MessageType |> Seq.exists hasAnyNestedType then
         true
     else
+
+        // No nested types in this file, but cross-message forward refs at the
+        // top level can still require `rec`. Example:
+        //     message Foo { Bar b = 1; }
+        //     message Bar { string s = 1; }
+        // Foo's body references Bar, declared after Foo — without `rec` this
+        // doesn't compile. The position-based detection below covers it.
 
         let buildFqn (parentFqn: string) (name: string) =
             if parentFqn = "" then $".{name}" else $"{parentFqn}.{name}"
