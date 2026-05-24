@@ -59,10 +59,8 @@ let generateWriteJsonToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                     let caseJsonName = c.JsonName
 
                     if c.Type = FieldDescriptorProto.Types.Type.Message then
-                        let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
-
-                        match Map.tryFind c.TypeName wellKnownTypeMap with
-                        | Some _ ->
+                        match classifyMessageRef currentMsgFqn c.TypeName with
+                        | WellKnown _ ->
                             MatchClauseExpr(
                                 ConstantPat(Constant($"{duName}.{caseName} v")),
                                 CompExprBodyExpr(
@@ -72,32 +70,30 @@ let generateWriteJsonToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                                       ) ]
                                 )
                             )
-                        | None ->
-                            match Map.tryFind c.TypeName wrapperTypeMap with
-                            | Some wrapperScalar ->
-                                let writeExpr =
-                                    match wrapperScalar with
-                                    | "string" -> $"writer.WriteString(\"{caseJsonName}\", v)"
-                                    | "bool" -> $"writer.WriteBoolean(\"{caseJsonName}\", v)"
-                                    | "float" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
-                                    | "float32" -> $"writer.WriteNumber(\"{caseJsonName}\", float v)"
-                                    | "int" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
-                                    | "uint32" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
-                                    | "int64" -> $"writer.WriteString(\"{caseJsonName}\", string v)"
-                                    | "uint64" -> $"writer.WriteString(\"{caseJsonName}\", string v)"
-                                    | "byte array" ->
-                                        $"writer.WriteString(\"{caseJsonName}\", System.Convert.ToBase64String(v))"
-                                    | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+                        | Wrapper(wrapperScalar, _) ->
+                            let writeExpr =
+                                match wrapperScalar with
+                                | "string" -> $"writer.WriteString(\"{caseJsonName}\", v)"
+                                | "bool" -> $"writer.WriteBoolean(\"{caseJsonName}\", v)"
+                                | "float" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
+                                | "float32" -> $"writer.WriteNumber(\"{caseJsonName}\", float v)"
+                                | "int" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
+                                | "uint32" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
+                                | "int64" -> $"writer.WriteString(\"{caseJsonName}\", string v)"
+                                | "uint64" -> $"writer.WriteString(\"{caseJsonName}\", string v)"
+                                | "byte array" ->
+                                    $"writer.WriteString(\"{caseJsonName}\", System.Convert.ToBase64String(v))"
+                                | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
 
-                                MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), E writeExpr)
-                            | None ->
-                                MatchClauseExpr(
-                                    ConstantPat(Constant($"{duName}.{caseName} v")),
-                                    CompExprBodyExpr(
-                                        [ OtherExpr(E $"writer.WritePropertyName(\"{caseJsonName}\")")
-                                          OtherExpr(E $"{msgTypeName}.writeJsonTo writer v") ]
-                                    )
+                            MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), E writeExpr)
+                        | PlainMessage msgTypeName ->
+                            MatchClauseExpr(
+                                ConstantPat(Constant($"{duName}.{caseName} v")),
+                                CompExprBodyExpr(
+                                    [ OtherExpr(E $"writer.WritePropertyName(\"{caseJsonName}\")")
+                                      OtherExpr(E $"{msgTypeName}.writeJsonTo writer v") ]
                                 )
+                            )
                     else
                         MatchClauseExpr(
                             ConstantPat(Constant($"{duName}.{caseName} v")),
@@ -344,10 +340,9 @@ let generateWriteJsonToAST (currentMsgFqn: string) (msg: DescriptorProto) =
         | Message f ->
             let fname = toPascalCase f.Name
             let jsonName = f.JsonName
-            let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
-            match Map.tryFind f.TypeName wellKnownTypeMap with
-            | Some _ ->
+            match classifyMessageRef currentMsgFqn f.TypeName with
+            | WellKnown _ ->
                 stmts.Add(
                     OtherExpr(
                         MatchExpr(
@@ -365,47 +360,45 @@ let generateWriteJsonToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                         )
                     )
                 )
-            | None ->
-                match Map.tryFind f.TypeName wrapperTypeMap with
-                | Some wrapperScalar ->
-                    let writeExpr =
-                        match wrapperScalar with
-                        | "string" -> $"writer.WriteString(\"{jsonName}\", v)"
-                        | "bool" -> $"writer.WriteBoolean(\"{jsonName}\", v)"
-                        | "float" -> $"writer.WriteNumber(\"{jsonName}\", v)"
-                        | "float32" -> $"writer.WriteNumber(\"{jsonName}\", float v)"
-                        | "int" -> $"writer.WriteNumber(\"{jsonName}\", v)"
-                        | "uint32" -> $"writer.WriteNumber(\"{jsonName}\", v)"
-                        | "int64" -> $"writer.WriteString(\"{jsonName}\", string v)"
-                        | "uint64" -> $"writer.WriteString(\"{jsonName}\", string v)"
-                        | "byte array" -> $"writer.WriteString(\"{jsonName}\", System.Convert.ToBase64String(v))"
-                        | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+            | Wrapper(wrapperScalar, _) ->
+                let writeExpr =
+                    match wrapperScalar with
+                    | "string" -> $"writer.WriteString(\"{jsonName}\", v)"
+                    | "bool" -> $"writer.WriteBoolean(\"{jsonName}\", v)"
+                    | "float" -> $"writer.WriteNumber(\"{jsonName}\", v)"
+                    | "float32" -> $"writer.WriteNumber(\"{jsonName}\", float v)"
+                    | "int" -> $"writer.WriteNumber(\"{jsonName}\", v)"
+                    | "uint32" -> $"writer.WriteNumber(\"{jsonName}\", v)"
+                    | "int64" -> $"writer.WriteString(\"{jsonName}\", string v)"
+                    | "uint64" -> $"writer.WriteString(\"{jsonName}\", string v)"
+                    | "byte array" -> $"writer.WriteString(\"{jsonName}\", System.Convert.ToBase64String(v))"
+                    | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
 
-                    stmts.Add(
-                        OtherExpr(
-                            MatchExpr(
-                                E $"value.{fname}",
-                                [ MatchClauseExpr(ConstantPat(Constant("Some v")), E writeExpr)
-                                  MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
-                            )
+                stmts.Add(
+                    OtherExpr(
+                        MatchExpr(
+                            E $"value.{fname}",
+                            [ MatchClauseExpr(ConstantPat(Constant("Some v")), E writeExpr)
+                              MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                         )
                     )
-                | None ->
-                    stmts.Add(
-                        OtherExpr(
-                            MatchExpr(
-                                E $"value.{fname}",
-                                [ MatchClauseExpr(
-                                      ConstantPat(Constant("Some v")),
-                                      CompExprBodyExpr(
-                                          [ OtherExpr(E $"writer.WritePropertyName(\"{jsonName}\")")
-                                            OtherExpr(E $"{msgTypeName}.writeJsonTo writer v") ]
-                                      )
+                )
+            | PlainMessage msgTypeName ->
+                stmts.Add(
+                    OtherExpr(
+                        MatchExpr(
+                            E $"value.{fname}",
+                            [ MatchClauseExpr(
+                                  ConstantPat(Constant("Some v")),
+                                  CompExprBodyExpr(
+                                      [ OtherExpr(E $"writer.WritePropertyName(\"{jsonName}\")")
+                                        OtherExpr(E $"{msgTypeName}.writeJsonTo writer v") ]
                                   )
-                                  MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
-                            )
+                              )
+                              MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                         )
                     )
+                )
         | Scalar f ->
             let fname = toPascalCase f.Name
             let jsonName = f.JsonName

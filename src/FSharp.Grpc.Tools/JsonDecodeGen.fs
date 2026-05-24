@@ -76,10 +76,8 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
 
                 for pat in patterns do
                     if c.Type = FieldDescriptorProto.Types.Type.Message then
-                        let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
-
-                        match Map.tryFind c.TypeName wellKnownTypeMap with
-                        | Some wktType ->
+                        match classifyMessageRef currentMsgFqn c.TypeName with
+                        | WellKnown wktType ->
                             clauses.Add(
                                 MatchClauseExpr(
                                     ConstantPat(Constant($"\"{pat}\"")),
@@ -90,40 +88,38 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                                     )
                                 )
                             )
-                        | None ->
-                            match Map.tryFind c.TypeName wrapperTypeMap with
-                            | Some wrapperScalar ->
-                                let readExpr =
-                                    match wrapperScalar with
-                                    | "string" -> "prop.Value.GetString()"
-                                    | "bool" -> "prop.Value.GetBoolean()"
-                                    | "float" -> "prop.Value.GetDouble()"
-                                    | "float32" -> "float32 (prop.Value.GetDouble())"
-                                    | "int64" ->
-                                        "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()"
-                                    | "uint64" ->
-                                        "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()"
-                                    | "int" -> "prop.Value.GetInt32()"
-                                    | "uint32" -> "prop.Value.GetUInt32()"
-                                    | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
-                                    | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+                        | Wrapper(wrapperScalar, _) ->
+                            let readExpr =
+                                match wrapperScalar with
+                                | "string" -> "prop.Value.GetString()"
+                                | "bool" -> "prop.Value.GetBoolean()"
+                                | "float" -> "prop.Value.GetDouble()"
+                                | "float32" -> "float32 (prop.Value.GetDouble())"
+                                | "int64" ->
+                                    "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()"
+                                | "uint64" ->
+                                    "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()"
+                                | "int" -> "prop.Value.GetInt32()"
+                                | "uint32" -> "prop.Value.GetUInt32()"
+                                | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
+                                | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
 
-                                clauses.Add(
-                                    MatchClauseExpr(
-                                        ConstantPat(Constant($"\"{pat}\"")),
-                                        LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}({readExpr}))")
+                            clauses.Add(
+                                MatchClauseExpr(
+                                    ConstantPat(Constant($"\"{pat}\"")),
+                                    LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}({readExpr}))")
+                                )
+                            )
+                        | PlainMessage msgTypeName ->
+                            clauses.Add(
+                                MatchClauseExpr(
+                                    ConstantPat(Constant($"\"{pat}\"")),
+                                    LongIdentSetExpr(
+                                        $"_{duFieldName}",
+                                        E $"Some({duName}.{caseName}({msgTypeName}.decodeJsonElement prop.Value))"
                                     )
                                 )
-                            | None ->
-                                clauses.Add(
-                                    MatchClauseExpr(
-                                        ConstantPat(Constant($"\"{pat}\"")),
-                                        LongIdentSetExpr(
-                                            $"_{duFieldName}",
-                                            E $"Some({duName}.{caseName}({msgTypeName}.decodeJsonElement prop.Value))"
-                                        )
-                                    )
-                                )
+                            )
                     else
                         let readExpr = jsonReadExpr currentMsgFqn "prop.Value" c
 
@@ -298,11 +294,9 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                 else
                     [ jsonName ]
 
-            let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
-
             for pat in patterns do
-                match Map.tryFind f.TypeName wellKnownTypeMap with
-                | Some wktType ->
+                match classifyMessageRef currentMsgFqn f.TypeName with
+                | WellKnown wktType ->
                     clauses.Add(
                         MatchClauseExpr(
                             ConstantPat(Constant($"\"{pat}\"")),
@@ -312,37 +306,35 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                             )
                         )
                     )
-                | None ->
-                    match Map.tryFind f.TypeName wrapperTypeMap with
-                    | Some wrapperScalar ->
-                        let readExpr =
-                            match wrapperScalar with
-                            | "string" -> "prop.Value.GetString()"
-                            | "bool" -> "prop.Value.GetBoolean()"
-                            | "float" -> "prop.Value.GetDouble()"
-                            | "float32" -> "float32 (prop.Value.GetDouble())"
-                            | "int64" ->
-                                "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()"
-                            | "uint64" ->
-                                "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()"
-                            | "int" -> "prop.Value.GetInt32()"
-                            | "uint32" -> "prop.Value.GetUInt32()"
-                            | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
-                            | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+                | Wrapper(wrapperScalar, _) ->
+                    let readExpr =
+                        match wrapperScalar with
+                        | "string" -> "prop.Value.GetString()"
+                        | "bool" -> "prop.Value.GetBoolean()"
+                        | "float" -> "prop.Value.GetDouble()"
+                        | "float32" -> "float32 (prop.Value.GetDouble())"
+                        | "int64" ->
+                            "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()"
+                        | "uint64" ->
+                            "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()"
+                        | "int" -> "prop.Value.GetInt32()"
+                        | "uint32" -> "prop.Value.GetUInt32()"
+                        | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
+                        | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
 
-                        clauses.Add(
-                            MatchClauseExpr(
-                                ConstantPat(Constant($"\"{pat}\"")),
-                                LongIdentSetExpr($"_{fname}", E $"Some({readExpr})")
-                            )
+                    clauses.Add(
+                        MatchClauseExpr(
+                            ConstantPat(Constant($"\"{pat}\"")),
+                            LongIdentSetExpr($"_{fname}", E $"Some({readExpr})")
                         )
-                    | None ->
-                        clauses.Add(
-                            MatchClauseExpr(
-                                ConstantPat(Constant($"\"{pat}\"")),
-                                LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decodeJsonElement prop.Value)")
-                            )
+                    )
+                | PlainMessage msgTypeName ->
+                    clauses.Add(
+                        MatchClauseExpr(
+                            ConstantPat(Constant($"\"{pat}\"")),
+                            LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decodeJsonElement prop.Value)")
                         )
+                    )
         | Scalar f ->
             let fname = toPascalCase f.Name
             let jsonName = f.JsonName

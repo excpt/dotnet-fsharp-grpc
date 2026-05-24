@@ -55,40 +55,32 @@ let decodeOneofClauses (currentMsgFqn: string) (msg: DescriptorProto) (idx: int)
         let caseName = toPascalCase c.Name
 
         if c.Type = FieldDescriptorProto.Types.Type.Message then
-            let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
-
             let buildExpr =
-                match Map.tryFind c.TypeName wellKnownTypeMap with
-                | Some wktType ->
+                match classifyMessageRef currentMsgFqn c.TypeName with
+                | WellKnown wktType ->
                     CompExprBodyExpr(
                         [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
                           LetOrUseExpr(Value("msg", E $"{wktType}()"))
                           OtherExpr(E "msg.MergeFrom(subInput)")
                           OtherExpr(LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}(msg))")) ]
                     )
-                | None ->
-                    match Map.tryFind c.TypeName wrapperTypeMap with
-                    | Some _ ->
-                        let wrapperClassName = simpleTypeName c.TypeName
-
-                        CompExprBodyExpr(
-                            [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
-                              LetOrUseExpr(Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"))
-                              OtherExpr(E "wrapper.MergeFrom(subInput)")
-                              OtherExpr(
-                                  LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}(wrapper.Value))")
-                              ) ]
-                        )
-                    | None ->
-                        CompExprBodyExpr(
-                            [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
-                              OtherExpr(
-                                  LongIdentSetExpr(
-                                      $"_{duFieldName}",
-                                      E $"Some({duName}.{caseName}({msgTypeName}.decodeFrom subInput))"
-                                  )
-                              ) ]
-                        )
+                | Wrapper(_, wrapperClassName) ->
+                    CompExprBodyExpr(
+                        [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                          LetOrUseExpr(Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"))
+                          OtherExpr(E "wrapper.MergeFrom(subInput)")
+                          OtherExpr(LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}(wrapper.Value))")) ]
+                    )
+                | PlainMessage msgTypeName ->
+                    CompExprBodyExpr(
+                        [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                          OtherExpr(
+                              LongIdentSetExpr(
+                                  $"_{duFieldName}",
+                                  E $"Some({duName}.{caseName}({msgTypeName}.decodeFrom subInput))"
+                              )
+                          ) ]
+                    )
 
             MatchClauseExpr(ConstantPat(Constant($"{c.Number}")), buildExpr)
         else
@@ -201,10 +193,8 @@ let decodeRepeatedClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fnam
 
 /// Generate decode match clause for a (non-optional, non-repeated) message field.
 let decodeMessageClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
-    let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
-
-    match Map.tryFind f.TypeName wellKnownTypeMap with
-    | Some wktType ->
+    match classifyMessageRef currentMsgFqn f.TypeName with
+    | WellKnown wktType ->
         MatchClauseExpr(
             ConstantPat(Constant($"{fieldNum}")),
             CompExprBodyExpr(
@@ -214,28 +204,24 @@ let decodeMessageClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fname
                   OtherExpr(LongIdentSetExpr($"_{fname}", E "Some(msg)")) ]
             )
         )
-    | None ->
-        match Map.tryFind f.TypeName wrapperTypeMap with
-        | Some _ ->
-            let wrapperClassName = simpleTypeName f.TypeName
-
-            MatchClauseExpr(
-                ConstantPat(Constant($"{fieldNum}")),
-                CompExprBodyExpr(
-                    [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
-                      LetOrUseExpr(Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"))
-                      OtherExpr(E "wrapper.MergeFrom(subInput)")
-                      OtherExpr(LongIdentSetExpr($"_{fname}", E "Some(wrapper.Value)")) ]
-                )
+    | Wrapper(_, wrapperClassName) ->
+        MatchClauseExpr(
+            ConstantPat(Constant($"{fieldNum}")),
+            CompExprBodyExpr(
+                [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                  LetOrUseExpr(Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"))
+                  OtherExpr(E "wrapper.MergeFrom(subInput)")
+                  OtherExpr(LongIdentSetExpr($"_{fname}", E "Some(wrapper.Value)")) ]
             )
-        | None ->
-            MatchClauseExpr(
-                ConstantPat(Constant($"{fieldNum}")),
-                CompExprBodyExpr(
-                    [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
-                      OtherExpr(LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decodeFrom subInput)")) ]
-                )
+        )
+    | PlainMessage msgTypeName ->
+        MatchClauseExpr(
+            ConstantPat(Constant($"{fieldNum}")),
+            CompExprBodyExpr(
+                [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
+                  OtherExpr(LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decodeFrom subInput)")) ]
             )
+        )
 
 /// Generate decode match clause for a proto3 optional field.
 let decodeOptionalClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =

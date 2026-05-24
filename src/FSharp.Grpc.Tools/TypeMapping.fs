@@ -112,6 +112,27 @@ let wrapperTypeMap =
           ".google.protobuf.StringValue", "string"
           ".google.protobuf.BytesValue", "byte array" ]
 
+/// What a proto message-typed field actually refers to. Three categories handled
+/// distinctly by every generator:
+///   - `WellKnown` — a Google.Protobuf well-known type with native serialisation
+///   - `Wrapper`   — a proto3 wrapper (StringValue, Int32Value, …) that we unwrap to a scalar
+///   - `PlainMessage` — any other generated message
+type MessageKind =
+    | WellKnown of fsType: string
+    | Wrapper of scalarFsType: string * className: string
+    | PlainMessage of fsTypeRef: string
+
+/// Classify a message-typed field's `TypeName` against the WKT/wrapper maps and fall
+/// through to a `qualifiedRef`-resolved plain message. Replaces the nested
+/// `Map.tryFind … wellKnownTypeMap`/`Map.tryFind … wrapperTypeMap` cascade.
+let classifyMessageRef (currentMsgFqn: string) (typeName: string) : MessageKind =
+    match Map.tryFind typeName wellKnownTypeMap with
+    | Some t -> WellKnown t
+    | None ->
+        match Map.tryFind typeName wrapperTypeMap with
+        | Some scalar -> Wrapper(scalar, simpleTypeName typeName)
+        | None -> PlainMessage(qualifiedRef currentMsgFqn typeName)
+
 /// Convert a proto scalar/enum/message type to a base F# type string.
 let baseTypeName (field: FieldDescriptorProto) =
     match field.Type with
