@@ -4,44 +4,52 @@ open System.IO
 open FSharp.Grpc.Tools.ProtocResolver
 open FSharp.Grpc.Tools.Pipeline
 
-type private Args =
+type Args =
     { Protoc: string option
       ProtoPaths: string list
       OutputDir: string
       Positionals: string list
-      DefaultServices: GrpcServices }
+      DefaultServices: GrpcServices
+      Errors: string list }
 
-let private parseGrpcServices =
-    function
-    | "Server" -> Server
-    | "Client" -> Client
-    | "Both" -> Both
-    | _ -> None
+let parseGrpcServices (value: string) : Result<GrpcServices, string> =
+    match value with
+    | "None" -> Ok None
+    | "Server" -> Ok Server
+    | "Client" -> Ok Client
+    | "Both" -> Ok Both
+    | _ -> Error $"unknown GrpcServices value '{value}'. Expected one of: None, Server, Client, Both."
 
 // Positional args use "<path>|<services>" to attach per-file services.
 // If the suffix is absent or empty, the global --grpc-services default applies.
 // '|' is safe — no platform's path syntax uses it.
-let private parsePositional (defaultServices: GrpcServices) (raw: string) : ProtoSpec =
+let parsePositional (defaultServices: GrpcServices) (raw: string) : Result<ProtoSpec, string> =
     let idx = raw.IndexOf('|')
 
     if idx < 0 then
-        { File = raw
-          Services = defaultServices }
+        Ok
+            { File = raw
+              Services = defaultServices }
     else
         let file = raw.Substring(0, idx)
         let svc = raw.Substring(idx + 1)
 
-        let services = if svc = "" then defaultServices else parseGrpcServices svc
+        if svc = "" then
+            Ok
+                { File = file
+                  Services = defaultServices }
+        else
+            parseGrpcServices svc
+            |> Result.map (fun services -> { File = file; Services = services })
 
-        { File = file; Services = services }
-
-let private parseArgs (argv: string array) =
+let parseArgs (argv: string array) =
     let mutable args =
         { Protoc = Option.None
           ProtoPaths = []
           OutputDir = "."
           Positionals = []
-          DefaultServices = None }
+          DefaultServices = None
+          Errors = [] }
 
     let mutable i = 0
 
@@ -63,8 +71,11 @@ let private parseArgs (argv: string array) =
             i <- i + 2
         | "--grpc-services" when i + 1 < argv.Length ->
             args <-
-                { args with
-                    DefaultServices = parseGrpcServices argv.[i + 1] }
+                match parseGrpcServices argv.[i + 1] with
+                | Ok v -> { args with DefaultServices = v }
+                | Error e ->
+                    { args with
+                        Errors = args.Errors @ [ e ] }
 
             i <- i + 2
         | arg when not (arg.StartsWith("-")) ->
@@ -81,9 +92,25 @@ let private parseArgs (argv: string array) =
 let main argv =
     let args = parseArgs argv
 
+    let positionalResults =
+        args.Positionals |> List.map (parsePositional args.DefaultServices)
+
+    let positionalErrors =
+        positionalResults
+        |> List.choose (function
+            | Error e -> Some e
+            | _ -> Option.None)
+
+    let allErrors = args.Errors @ positionalErrors
+
     if List.isEmpty args.Positionals then
         eprintfn
             "Usage: grpc-fsharp-codegen [--protoc <path>] [--proto-path <dir>]... [--output-dir <dir>] [--grpc-services None|Server|Client|Both] <file.proto[|Services]>..."
+
+        1
+    elif not (List.isEmpty allErrors) then
+        for e in allErrors do
+            eprintfn "%s" e
 
         1
     else
@@ -109,7 +136,11 @@ let main argv =
                     else
                         []
 
-            let protos = args.Positionals |> List.map (parsePositional args.DefaultServices)
+            let protos =
+                positionalResults
+                |> List.choose (function
+                    | Ok p -> Some p
+                    | _ -> Option.None)
 
             let protoFileDirs =
                 protos
