@@ -199,30 +199,37 @@ public class PropertyTests
     // Address — covers proto3 optional
     // ---------------------------------------------------------
 
+    // `NonNull<T>` is a reference-type wrapper, so `NonNull<string>?` is just a
+    // nullable annotation — FsCheck's default arbitrary always produces a
+    // non-null wrapper and never exercises the proto3 `optional` absent case.
+    // Driving presence with an explicit `bool` guarantees both branches.
+
     [Property]
-    public bool Address_FSharpEncode_CSharpDecode(NonNull<string> street, NonNull<string> city, NonNull<string>? zip)
+    public bool Address_FSharpEncode_CSharpDecode(
+        NonNull<string> street, NonNull<string> city, bool zipPresent, NonNull<string> zip)
     {
-        var fsZip = zip is null ? FSharpOption<string>.None : Some(zip.Get);
+        var fsZip = zipPresent ? Some(zip.Get) : FSharpOption<string>.None;
         var fs = new Fs.Address(street.Get, city.Get, fsZip);
         var bytes = Fs.AddressModule.encode(fs);
         var cs = Cs.Address.Parser.ParseFrom(bytes);
         return cs.Street == street.Get
             && cs.City == city.Get
-            && cs.HasZipCode == (zip is not null)
-            && (zip is null || cs.ZipCode == zip.Get);
+            && cs.HasZipCode == zipPresent
+            && (!zipPresent || cs.ZipCode == zip.Get);
     }
 
     [Property]
-    public bool Address_CSharpEncode_FSharpDecode(NonNull<string> street, NonNull<string> city, NonNull<string>? zip)
+    public bool Address_CSharpEncode_FSharpDecode(
+        NonNull<string> street, NonNull<string> city, bool zipPresent, NonNull<string> zip)
     {
         var cs = new Cs.Address { Street = street.Get, City = city.Get };
-        if (zip is not null) cs.ZipCode = zip.Get;
+        if (zipPresent) cs.ZipCode = zip.Get;
         var bytes = cs.ToByteArray();
         var fs = Fs.AddressModule.decode(bytes);
         return fs.Street == street.Get
             && fs.City == city.Get
-            && FSharpOption<string>.get_IsSome(fs.ZipCode) == (zip is not null)
-            && (zip is null || fs.ZipCode.Value == zip.Get);
+            && FSharpOption<string>.get_IsSome(fs.ZipCode) == zipPresent
+            && (!zipPresent || fs.ZipCode.Value == zip.Get);
     }
 
     // ---------------------------------------------------------
@@ -238,15 +245,18 @@ public class PropertyTests
 
     public enum ContactChoice { Phone, Email }
 
-    private static Fs.UserProfile ToFs(UserProfileInputs i, string? contactText)
+    private static Fs.UserProfile ToFs(UserProfileInputs i, string contactText)
     {
         var status = (Fs.Status)System.Math.Abs(i.StatusOrdinal % 3);
         var rating = i.Rating is { } r && IsCleanDouble(r) ? Some(r) : FSharpOption<double>.None;
 
-        var contact = (i.Contact, contactText) switch
+        // Presence comes from `i.Contact` (Nullable<ContactChoice> — value-type
+        // nullable that FsCheck does generate both states for); `contactText` is
+        // always supplied so each present case has a real string to round-trip.
+        var contact = i.Contact switch
         {
-            (ContactChoice.Phone, var t) when t is not null => Some(Fs.UserProfileContact.NewPhoneNumber(t)),
-            (ContactChoice.Email, var t) when t is not null => Some(Fs.UserProfileContact.NewEmail(t)),
+            ContactChoice.Phone => Some(Fs.UserProfileContact.NewPhoneNumber(contactText)),
+            ContactChoice.Email => Some(Fs.UserProfileContact.NewEmail(contactText)),
             _ => FSharpOption<Fs.UserProfileContact>.None,
         };
 
@@ -274,13 +284,13 @@ public class PropertyTests
     }
 
     [Property]
-    public bool UserProfile_FSharpEncode_CSharpDecode_Roundtrip(UserProfileInputs i, NonNull<string>? contactText)
+    public bool UserProfile_FSharpEncode_CSharpDecode_Roundtrip(UserProfileInputs i, NonNull<string> contactText)
     {
         // Full cross-lang round-trip: F# encode → C# decode → C# re-encode → F# decode.
         // Byte equality is too strict — proto3 map entries can appear in any order on the
         // wire, so the C#-emitted bytes need not match the F#-emitted bytes verbatim.
         // Semantic equality of the round-tripped record is the strongest invariant here.
-        var fs = ToFs(i, contactText?.Get);
+        var fs = ToFs(i, contactText.Get);
         var bytes = Fs.UserProfileModule.encode(fs);
         var cs = Cs.UserProfile.Parser.ParseFrom(bytes);
         var roundTripped = Fs.UserProfileModule.decode(cs.ToByteArray());
@@ -288,9 +298,9 @@ public class PropertyTests
     }
 
     [Property]
-    public bool UserProfile_FSharpRoundtrip(UserProfileInputs i, NonNull<string>? contactText)
+    public bool UserProfile_FSharpRoundtrip(UserProfileInputs i, NonNull<string> contactText)
     {
-        var original = ToFs(i, contactText?.Get);
+        var original = ToFs(i, contactText.Get);
         var decoded = Fs.UserProfileModule.decode(Fs.UserProfileModule.encode(original));
         return decoded.Equals(original);
     }
