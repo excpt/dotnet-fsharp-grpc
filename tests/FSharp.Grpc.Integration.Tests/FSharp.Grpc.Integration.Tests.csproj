@@ -13,6 +13,8 @@
         <PackageReference Include="xunit.v3"/>
         <PackageReference Include="xunit.runner.visualstudio"/>
         <PackageReference Include="coverlet.collector"/>
+        <PackageReference Include="FsCheck"/>
+        <PackageReference Include="FsCheck.Xunit.v3"/>
         <PackageReference Include="Google.Protobuf"/>
         <PackageReference Include="Grpc.Tools" PrivateAssets="all"/>
     </ItemGroup>
