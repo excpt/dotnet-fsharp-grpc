@@ -27,11 +27,9 @@ let generateComputeSizeAST (currentMsgFqn: string) (msg: DescriptorProto) =
                     let caseTag = c.Number
 
                     if c.Type = FieldDescriptorProto.Types.Type.Message then
-                        let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
-
                         let body =
-                            match Map.tryFind c.TypeName wellKnownTypeMap with
-                            | Some _ ->
+                            match classifyMessageRef currentMsgFqn c.TypeName with
+                            | WellKnown _ ->
                                 CompExprBodyExpr(
                                     [ LetOrUseExpr(Value("subSize", E "v.CalculateSize()"))
                                       OtherExpr(
@@ -40,35 +38,28 @@ let generateComputeSizeAST (currentMsgFqn: string) (msg: DescriptorProto) =
                                           )
                                       ) ]
                                 )
-                            | None ->
-                                match Map.tryFind c.TypeName wrapperTypeMap with
-                                | Some _ ->
-                                    let wrapperClassName = simpleTypeName c.TypeName
-
-                                    CompExprBodyExpr(
-                                        [ LetOrUseExpr(
-                                              Value(
-                                                  "wrapper",
-                                                  E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"
-                                              )
+                            | Wrapper(_, wrapperClassName) ->
+                                CompExprBodyExpr(
+                                    [ LetOrUseExpr(
+                                          Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()")
+                                      )
+                                      OtherExpr(E "wrapper.Value <- v")
+                                      LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
+                                      OtherExpr(
+                                          addToSize (
+                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize({caseTag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
                                           )
-                                          OtherExpr(E "wrapper.Value <- v")
-                                          LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
-                                          OtherExpr(
-                                              addToSize (
-                                                  $"Google.Protobuf.CodedOutputStream.ComputeTagSize({caseTag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
-                                              )
-                                          ) ]
-                                    )
-                                | None ->
-                                    CompExprBodyExpr(
-                                        [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
-                                          OtherExpr(
-                                              addToSize (
-                                                  $"Google.Protobuf.CodedOutputStream.ComputeTagSize({caseTag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
-                                              )
-                                          ) ]
-                                    )
+                                      ) ]
+                                )
+                            | PlainMessage msgTypeName ->
+                                CompExprBodyExpr(
+                                    [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
+                                      OtherExpr(
+                                          addToSize (
+                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize({caseTag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
+                                          )
+                                      ) ]
+                                )
 
                         MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), body)
                     else
@@ -205,10 +196,9 @@ let generateComputeSizeAST (currentMsgFqn: string) (msg: DescriptorProto) =
         | Message f ->
             let tag = f.Number
             let fname = toPascalCase f.Name
-            let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
-            match Map.tryFind f.TypeName wellKnownTypeMap with
-            | Some _ ->
+            match classifyMessageRef currentMsgFqn f.TypeName with
+            | WellKnown _ ->
                 stmts.Add(
                     OtherExpr(
                         MatchExpr(
@@ -228,57 +218,50 @@ let generateComputeSizeAST (currentMsgFqn: string) (msg: DescriptorProto) =
                         )
                     )
                 )
-            | None ->
-                match Map.tryFind f.TypeName wrapperTypeMap with
-                | Some _ ->
-                    let wrapperClassName = simpleTypeName f.TypeName
-
-                    stmts.Add(
-                        OtherExpr(
-                            MatchExpr(
-                                E $"value.{fname}",
-                                [ MatchClauseExpr(
-                                      ConstantPat(Constant("Some v")),
-                                      CompExprBodyExpr(
-                                          [ LetOrUseExpr(
-                                                Value(
-                                                    "wrapper",
-                                                    E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"
-                                                )
+            | Wrapper(_, wrapperClassName) ->
+                stmts.Add(
+                    OtherExpr(
+                        MatchExpr(
+                            E $"value.{fname}",
+                            [ MatchClauseExpr(
+                                  ConstantPat(Constant("Some v")),
+                                  CompExprBodyExpr(
+                                      [ LetOrUseExpr(
+                                            Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()")
+                                        )
+                                        OtherExpr(E "wrapper.Value <- v")
+                                        LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
+                                        OtherExpr(
+                                            addToSize (
+                                                $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
                                             )
-                                            OtherExpr(E "wrapper.Value <- v")
-                                            LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
-                                            OtherExpr(
-                                                addToSize (
-                                                    $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
-                                                )
-                                            ) ]
-                                      )
+                                        ) ]
                                   )
-                                  MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
-                            )
+                              )
+                              MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                         )
                     )
-                | None ->
-                    stmts.Add(
-                        OtherExpr(
-                            MatchExpr(
-                                E $"value.{fname}",
-                                [ MatchClauseExpr(
-                                      ConstantPat(Constant("Some v")),
-                                      CompExprBodyExpr(
-                                          [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
-                                            OtherExpr(
-                                                addToSize (
-                                                    $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
-                                                )
-                                            ) ]
-                                      )
+                )
+            | PlainMessage msgTypeName ->
+                stmts.Add(
+                    OtherExpr(
+                        MatchExpr(
+                            E $"value.{fname}",
+                            [ MatchClauseExpr(
+                                  ConstantPat(Constant("Some v")),
+                                  CompExprBodyExpr(
+                                      [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
+                                        OtherExpr(
+                                            addToSize (
+                                                $"Google.Protobuf.CodedOutputStream.ComputeTagSize({tag}) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(subSize) + subSize"
+                                            )
+                                        ) ]
                                   )
-                                  MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
-                            )
+                              )
+                              MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                         )
                     )
+                )
         | Scalar f ->
             let tag = f.Number
             let fname = toPascalCase f.Name

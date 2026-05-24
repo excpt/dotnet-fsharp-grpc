@@ -27,11 +27,9 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                     let caseWt = wireType c
 
                     if c.Type = FieldDescriptorProto.Types.Type.Message then
-                        let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
-
                         let body =
-                            match Map.tryFind c.TypeName wellKnownTypeMap with
-                            | Some _ ->
+                            match classifyMessageRef currentMsgFqn c.TypeName with
+                            | WellKnown _ ->
                                 CompExprBodyExpr(
                                     [ LetOrUseExpr(Value("subSize", E "v.CalculateSize()"))
                                       OtherExpr(
@@ -41,37 +39,30 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                                       OtherExpr(E "output.WriteLength(subSize)")
                                       OtherExpr(E "v.WriteTo(output)") ]
                                 )
-                            | None ->
-                                match Map.tryFind c.TypeName wrapperTypeMap with
-                                | Some _ ->
-                                    let wrapperClassName = simpleTypeName c.TypeName
-
-                                    CompExprBodyExpr(
-                                        [ LetOrUseExpr(
-                                              Value(
-                                                  "wrapper",
-                                                  E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"
-                                              )
-                                          )
-                                          OtherExpr(E "wrapper.Value <- v")
-                                          LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
-                                          OtherExpr(
-                                              E
-                                                  $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                          )
-                                          OtherExpr(E "output.WriteLength(subSize)")
-                                          OtherExpr(E "wrapper.WriteTo(output)") ]
-                                    )
-                                | None ->
-                                    CompExprBodyExpr(
-                                        [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
-                                          OtherExpr(
-                                              E
-                                                  $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                          )
-                                          OtherExpr(E "output.WriteLength(subSize)")
-                                          OtherExpr(E $"{msgTypeName}.writeTo output v") ]
-                                    )
+                            | Wrapper(_, wrapperClassName) ->
+                                CompExprBodyExpr(
+                                    [ LetOrUseExpr(
+                                          Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()")
+                                      )
+                                      OtherExpr(E "wrapper.Value <- v")
+                                      LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
+                                      OtherExpr(
+                                          E
+                                              $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
+                                      )
+                                      OtherExpr(E "output.WriteLength(subSize)")
+                                      OtherExpr(E "wrapper.WriteTo(output)") ]
+                                )
+                            | PlainMessage msgTypeName ->
+                                CompExprBodyExpr(
+                                    [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
+                                      OtherExpr(
+                                          E
+                                              $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
+                                      )
+                                      OtherExpr(E "output.WriteLength(subSize)")
+                                      OtherExpr(E $"{msgTypeName}.writeTo output v") ]
+                                )
 
                         MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), body)
                     else
@@ -223,10 +214,9 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
         | Message f ->
             let tag = f.Number
             let fname = toPascalCase f.Name
-            let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
-            match Map.tryFind f.TypeName wellKnownTypeMap with
-            | Some _ ->
+            match classifyMessageRef currentMsgFqn f.TypeName with
+            | WellKnown _ ->
                 stmts.Add(
                     OtherExpr(
                         MatchExpr(
@@ -247,59 +237,52 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                         )
                     )
                 )
-            | None ->
-                match Map.tryFind f.TypeName wrapperTypeMap with
-                | Some _ ->
-                    let wrapperClassName = simpleTypeName f.TypeName
-
-                    stmts.Add(
-                        OtherExpr(
-                            MatchExpr(
-                                E $"value.{fname}",
-                                [ MatchClauseExpr(
-                                      ConstantPat(Constant("Some v")),
-                                      CompExprBodyExpr(
-                                          [ LetOrUseExpr(
-                                                Value(
-                                                    "wrapper",
-                                                    E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"
-                                                )
-                                            )
-                                            OtherExpr(E "wrapper.Value <- v")
-                                            LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
-                                            OtherExpr(
-                                                E
-                                                    $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                            )
-                                            OtherExpr(E $"output.WriteLength(subSize)")
-                                            OtherExpr(E "wrapper.WriteTo(output)") ]
-                                      )
+            | Wrapper(_, wrapperClassName) ->
+                stmts.Add(
+                    OtherExpr(
+                        MatchExpr(
+                            E $"value.{fname}",
+                            [ MatchClauseExpr(
+                                  ConstantPat(Constant("Some v")),
+                                  CompExprBodyExpr(
+                                      [ LetOrUseExpr(
+                                            Value("wrapper", E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()")
+                                        )
+                                        OtherExpr(E "wrapper.Value <- v")
+                                        LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
+                                        OtherExpr(
+                                            E
+                                                $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
+                                        )
+                                        OtherExpr(E $"output.WriteLength(subSize)")
+                                        OtherExpr(E "wrapper.WriteTo(output)") ]
                                   )
-                                  MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
-                            )
+                              )
+                              MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                         )
                     )
-                | None ->
-                    stmts.Add(
-                        OtherExpr(
-                            MatchExpr(
-                                E $"value.{fname}",
-                                [ MatchClauseExpr(
-                                      ConstantPat(Constant("Some v")),
-                                      CompExprBodyExpr(
-                                          [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
-                                            OtherExpr(
-                                                E
-                                                    $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                            )
-                                            OtherExpr(E $"output.WriteLength(subSize)")
-                                            OtherExpr(E $"{msgTypeName}.writeTo output v") ]
-                                      )
+                )
+            | PlainMessage msgTypeName ->
+                stmts.Add(
+                    OtherExpr(
+                        MatchExpr(
+                            E $"value.{fname}",
+                            [ MatchClauseExpr(
+                                  ConstantPat(Constant("Some v")),
+                                  CompExprBodyExpr(
+                                      [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
+                                        OtherExpr(
+                                            E
+                                                $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
+                                        )
+                                        OtherExpr(E $"output.WriteLength(subSize)")
+                                        OtherExpr(E $"{msgTypeName}.writeTo output v") ]
                                   )
-                                  MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
-                            )
+                              )
+                              MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                         )
                     )
+                )
         | Scalar f ->
             let tag = f.Number
             let fname = toPascalCase f.Name
