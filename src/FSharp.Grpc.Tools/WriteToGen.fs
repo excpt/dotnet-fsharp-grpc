@@ -101,8 +101,31 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
 
                 stmts.Add(
                     OtherExpr(
-                        E
-                            $"value.{fname} |> Map.iter (fun mapKey mapValue -> let valueMsgSize = {msgTypeName}.computeSize mapValue in let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(valueMsgSize) + valueMsgSize in output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt}); {keyWriteCall}; output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(valueMsgSize); {msgTypeName}.writeTo output mapValue)"
+                        ForEachDoExpr(
+                            "kvp",
+                            E $"value.{fname}",
+                            CompExprBodyExpr(
+                                [ LetOrUseExpr(Value("mapKey", E "kvp.Key"))
+                                  LetOrUseExpr(Value("mapValue", E "kvp.Value"))
+                                  LetOrUseExpr(Value("valueMsgSize", E $"{msgTypeName}.computeSize mapValue"))
+                                  LetOrUseExpr(
+                                      Value(
+                                          "entrySize",
+                                          E
+                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + Google.Protobuf.CodedOutputStream.ComputeLengthSize(valueMsgSize) + valueMsgSize"
+                                      )
+                                  )
+                                  OtherExpr(
+                                      E $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
+                                  )
+                                  OtherExpr(E "output.WriteLength(entrySize)")
+                                  OtherExpr(E $"output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt})")
+                                  OtherExpr(E keyWriteCall)
+                                  OtherExpr(E "output.WriteTag(2, Google.Protobuf.WireFormat.WireType.LengthDelimited)")
+                                  OtherExpr(E "output.WriteLength(valueMsgSize)")
+                                  OtherExpr(E $"{msgTypeName}.writeTo output mapValue") ]
+                            )
+                        )
                     )
                 )
             else
@@ -112,8 +135,29 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
 
                 stmts.Add(
                     OtherExpr(
-                        E
-                            $"value.{fname} |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + {valueSizeExpr} in output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt}); {keyWriteCall}; output.WriteTag(2, Google.Protobuf.WireFormat.WireType.{valueWt}); {valueWriteCall})"
+                        ForEachDoExpr(
+                            "kvp",
+                            E $"value.{fname}",
+                            CompExprBodyExpr(
+                                [ LetOrUseExpr(Value("mapKey", E "kvp.Key"))
+                                  LetOrUseExpr(Value("mapValue", E "kvp.Value"))
+                                  LetOrUseExpr(
+                                      Value(
+                                          "entrySize",
+                                          E
+                                              $"Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + {valueSizeExpr}"
+                                      )
+                                  )
+                                  OtherExpr(
+                                      E $"output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
+                                  )
+                                  OtherExpr(E "output.WriteLength(entrySize)")
+                                  OtherExpr(E $"output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt})")
+                                  OtherExpr(E keyWriteCall)
+                                  OtherExpr(E $"output.WriteTag(2, Google.Protobuf.WireFormat.WireType.{valueWt})")
+                                  OtherExpr(E valueWriteCall) ]
+                            )
+                        )
                     )
                 )
         | Repeated f ->
