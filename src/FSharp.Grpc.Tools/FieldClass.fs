@@ -17,6 +17,13 @@ type FieldKind =
 /// Classify each field in a message into a `FieldKind`, in `.Number` order,
 /// with oneof followers absorbed into `OneofLeader.fields` (so each oneof
 /// appears exactly once at the position of its lowest-numbered case).
+///
+/// Ordering note: an `OneofLeader` is positioned by its smallest field
+/// number, NOT by its declaration index in `msg.OneofDecl`. A message that
+/// declares oneof `a` (fields [5]) before oneof `b` (fields [1]) yields
+/// `[OneofLeader(b, ...); OneofLeader(a, ...)]`. Callers that need
+/// declaration order — for example, when emitting sibling types whose
+/// source-listing order matters — should iterate `msg.OneofDecl` directly.
 let classifyFields (msg: DescriptorProto) : FieldKind list =
     let mutable emittedOneofs = Set.empty
 
