@@ -39,13 +39,13 @@ module WithRepeated =
             buffer
 
     let decodeFrom (input: Google.Protobuf.CodedInputStream) : WithRepeated =
-        let mutable _Tags = []
-        let mutable _Scores = []
+        let _Tags = ResizeArray<_>()
+        let _Scores = ResizeArray<_>()
         let mutable tag = input.ReadTag()
 
         while tag <> 0u do
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
-            | 1 -> _Tags <- input.ReadString() :: _Tags
+            | 1 -> _Tags.Add(input.ReadString())
             | 2 ->
                 let wt = Google.Protobuf.WireFormat.GetTagWireType(tag)
 
@@ -53,15 +53,15 @@ module WithRepeated =
                     use packedInput = input.ReadBytes().CreateCodedInput()
 
                     while not packedInput.IsAtEnd do
-                        _Scores <- packedInput.ReadInt32() :: _Scores
+                        _Scores.Add(packedInput.ReadInt32())
                 else
-                    _Scores <- input.ReadInt32() :: _Scores
+                    _Scores.Add(input.ReadInt32())
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
 
-        { Tags = List.rev _Tags
-          Scores = List.rev _Scores }
+        { Tags = List.ofSeq _Tags
+          Scores = List.ofSeq _Scores }
 
     let decode (data: byte array) : WithRepeated =
         use input = new Google.Protobuf.CodedInputStream(data)
@@ -96,21 +96,21 @@ module WithRepeated =
         System.Text.Encoding.UTF8.GetString(bufferWriter.ToArray())
 
     let decodeJsonElement (element: System.Text.Json.JsonElement) : WithRepeated =
-        let mutable _Tags = []
-        let mutable _Scores = []
+        let _Tags = ResizeArray<_>()
+        let _Scores = ResizeArray<_>()
 
         for prop in element.EnumerateObject() do
             match prop.Name with
             | "tags" ->
                 for item in prop.Value.EnumerateArray() do
-                    _Tags <- item.GetString() :: _Tags
+                    _Tags.Add(item.GetString())
             | "scores" ->
                 for item in prop.Value.EnumerateArray() do
-                    _Scores <- item.GetInt32() :: _Scores
+                    _Scores.Add(item.GetInt32())
             | _ -> ()
 
-        { Tags = List.rev _Tags
-          Scores = List.rev _Scores }
+        { Tags = List.ofSeq _Tags
+          Scores = List.ofSeq _Scores }
 
     let decodeJson (json: string) : WithRepeated =
         use doc = System.Text.Json.JsonDocument.Parse(json)

@@ -149,7 +149,9 @@ let decodeMapClause
         )
     )
 
-/// Generate decode match clause for a repeated field.
+/// Generate decode match clause for a repeated field. Decoded items are appended
+/// to a `ResizeArray<_>` (O(1) amortised) and finalised to an `_ list` via
+/// `List.ofSeq` at the end — one tail-recursive walk, no `List.rev` re-allocation.
 let decodeRepeatedClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fname: string) (fieldNum: int) =
     if f.Type = FieldDescriptorProto.Types.Type.Message then
         let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
@@ -158,7 +160,7 @@ let decodeRepeatedClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fnam
             ConstantPat(Constant($"{fieldNum}")),
             CompExprBodyExpr(
                 [ LetOrUseExpr(Use("subInput", E "input.ReadBytes().CreateCodedInput()"))
-                  OtherExpr(E $"_{fname} <- {msgTypeName}.decodeFrom subInput :: _{fname}") ]
+                  OtherExpr(E $"_{fname}.Add({msgTypeName}.decodeFrom subInput)") ]
             )
         )
     elif
@@ -167,7 +169,7 @@ let decodeRepeatedClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fnam
     then
         let readCall = readExpr "input" f
 
-        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), E $"_{fname} <- {readCall} :: _{fname}")
+        MatchClauseExpr(ConstantPat(Constant($"{fieldNum}")), E $"_{fname}.Add({readCall})")
     else
         let unpackedRead = readExpr "input" f
         let packedRead = readExpr "packedInput" f
@@ -181,11 +183,9 @@ let decodeRepeatedClause (currentMsgFqn: string) (f: FieldDescriptorProto) (fnam
                           E "wt = Google.Protobuf.WireFormat.WireType.LengthDelimited",
                           CompExprBodyExpr(
                               [ LetOrUseExpr(Use("packedInput", E "input.ReadBytes().CreateCodedInput()"))
-                                OtherExpr(
-                                    WhileExpr(E "not packedInput.IsAtEnd", E $"_{fname} <- {packedRead} :: _{fname}")
-                                ) ]
+                                OtherExpr(WhileExpr(E "not packedInput.IsAtEnd", E $"_{fname}.Add({packedRead})")) ]
                           ),
-                          E $"_{fname} <- {unpackedRead} :: _{fname}"
+                          E $"_{fname}.Add({unpackedRead})"
                       )
                   ) ]
             )
@@ -276,7 +276,7 @@ let generateDecodeFromAST (currentMsgFqn: string) (msg: DescriptorProto) =
         |> Seq.map (fun fv ->
             match fv with
             | MutableScalar(_, vn, defaultExpr) -> LetOrUseExpr(Value(vn, E defaultExpr).toMutable ())
-            | MutableList(_, vn) -> LetOrUseExpr(Value(vn, E "[]").toMutable ())
+            | MutableList(_, vn) -> LetOrUseExpr(Value(vn, E "ResizeArray<_>()"))
             | MutableMap(_, vn) -> LetOrUseExpr(Value(vn, E "Map.empty").toMutable ()))
         |> Seq.toList
 
@@ -286,7 +286,7 @@ let generateDecodeFromAST (currentMsgFqn: string) (msg: DescriptorProto) =
         |> Seq.map (fun fv ->
             match fv with
             | MutableScalar(fn, vn, _) -> RecordFieldExpr(fn, E vn)
-            | MutableList(fn, vn) -> RecordFieldExpr(fn, E $"List.rev {vn}")
+            | MutableList(fn, vn) -> RecordFieldExpr(fn, E $"List.ofSeq {vn}")
             | MutableMap(fn, vn) -> RecordFieldExpr(fn, E vn))
         |> Seq.toList
 

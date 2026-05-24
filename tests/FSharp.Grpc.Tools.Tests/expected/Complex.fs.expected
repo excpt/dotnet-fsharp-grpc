@@ -240,7 +240,7 @@ module Organization =
 
             let decodeFrom (input: Google.Protobuf.CodedInputStream) : Department =
                 let mutable _Name = ""
-                let mutable _Members = []
+                let _Members = ResizeArray<_>()
                 let mutable _Priority = LanguagePrimitives.EnumOfValue 0
                 let mutable tag = input.ReadTag()
 
@@ -249,14 +249,14 @@ module Organization =
                     | 1 -> _Name <- input.ReadString()
                     | 2 ->
                         use subInput = input.ReadBytes().CreateCodedInput()
-                        _Members <- User.decodeFrom subInput :: _Members
+                        _Members.Add(User.decodeFrom subInput)
                     | 3 -> _Priority <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
                     | _ -> input.SkipLastField()
 
                     tag <- input.ReadTag()
 
                 { Name = _Name
-                  Members = List.rev _Members
+                  Members = List.ofSeq _Members
                   Priority = _Priority }
 
             let decode (data: byte array) : Department =
@@ -291,7 +291,7 @@ module Organization =
 
             let decodeJsonElement (element: System.Text.Json.JsonElement) : Department =
                 let mutable _Name = ""
-                let mutable _Members = []
+                let _Members = ResizeArray<_>()
                 let mutable _Priority = LanguagePrimitives.EnumOfValue 0
 
                 for prop in element.EnumerateObject() do
@@ -299,14 +299,14 @@ module Organization =
                     | "name" -> _Name <- prop.Value.GetString()
                     | "members" ->
                         for item in prop.Value.EnumerateArray() do
-                            _Members <- User.decodeJsonElement item :: _Members
+                            _Members.Add(User.decodeJsonElement item)
                     | "priority" ->
                         _Priority <-
                             Types.Priority.fromJsonName(if prop.Value.ValueKind = System.Text.Json.JsonValueKind.Number then string (prop.Value.GetInt32()) else prop.Value.GetString())
                     | _ -> ()
 
                 { Name = _Name
-                  Members = List.rev _Members
+                  Members = List.ofSeq _Members
                   Priority = _Priority }
 
             let decodeJson (json: string) : Department =
@@ -392,9 +392,9 @@ module Organization =
     let decodeFrom (input: Google.Protobuf.CodedInputStream) : Organization =
         let mutable _Name = ""
         let mutable _BillingAddress = None
-        let mutable _DomainNames = []
+        let _DomainNames = ResizeArray<_>()
         let mutable _Metadata = Map.empty
-        let mutable _Departments = []
+        let _Departments = ResizeArray<_>()
         let mutable tag = input.ReadTag()
 
         while tag <> 0u do
@@ -403,7 +403,7 @@ module Organization =
             | 2 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
                 _BillingAddress <- Some(Address.decodeFrom subInput)
-            | 3 -> _DomainNames <- input.ReadString() :: _DomainNames
+            | 3 -> _DomainNames.Add(input.ReadString())
             | 4 ->
                 use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
@@ -421,16 +421,16 @@ module Organization =
                 _Metadata <- Map.add key mapValue _Metadata
             | 5 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _Departments <- Types.Department.decodeFrom subInput :: _Departments
+                _Departments.Add(Types.Department.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
 
         { Name = _Name
           BillingAddress = _BillingAddress
-          DomainNames = List.rev _DomainNames
+          DomainNames = List.ofSeq _DomainNames
           Metadata = _Metadata
-          Departments = List.rev _Departments }
+          Departments = List.ofSeq _Departments }
 
     let decode (data: byte array) : Organization =
         use input = new Google.Protobuf.CodedInputStream(data)
@@ -485,9 +485,9 @@ module Organization =
     let decodeJsonElement (element: System.Text.Json.JsonElement) : Organization =
         let mutable _Name = ""
         let mutable _BillingAddress = None
-        let mutable _DomainNames = []
+        let _DomainNames = ResizeArray<_>()
         let mutable _Metadata = Map.empty
-        let mutable _Departments = []
+        let _Departments = ResizeArray<_>()
 
         for prop in element.EnumerateObject() do
             match prop.Name with
@@ -496,23 +496,23 @@ module Organization =
             | "billing_address" -> _BillingAddress <- Some(Address.decodeJsonElement prop.Value)
             | "domainNames" ->
                 for item in prop.Value.EnumerateArray() do
-                    _DomainNames <- item.GetString() :: _DomainNames
+                    _DomainNames.Add(item.GetString())
             | "domain_names" ->
                 for item in prop.Value.EnumerateArray() do
-                    _DomainNames <- item.GetString() :: _DomainNames
+                    _DomainNames.Add(item.GetString())
             | "metadata" ->
                 for entry in prop.Value.EnumerateObject() do
                     _Metadata <- Map.add (entry.Name) (entry.Value.GetString()) _Metadata
             | "departments" ->
                 for item in prop.Value.EnumerateArray() do
-                    _Departments <- Types.Department.decodeJsonElement item :: _Departments
+                    _Departments.Add(Types.Department.decodeJsonElement item)
             | _ -> ()
 
         { Name = _Name
           BillingAddress = _BillingAddress
-          DomainNames = List.rev _DomainNames
+          DomainNames = List.ofSeq _DomainNames
           Metadata = _Metadata
-          Departments = List.rev _Departments }
+          Departments = List.ofSeq _Departments }
 
     let decodeJson (json: string) : Organization =
         use doc = System.Text.Json.JsonDocument.Parse(json)
@@ -700,7 +700,7 @@ module User =
         let mutable _Email = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
         let mutable _HomeAddress = None
-        let mutable _OtherAddresses = []
+        let _OtherAddresses = ResizeArray<_>()
         let mutable _Scores = Map.empty
         let mutable _Rating = None
         let mutable _Organization = None
@@ -719,7 +719,7 @@ module User =
                 _HomeAddress <- Some(Address.decodeFrom subInput)
             | 6 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _OtherAddresses <- Address.decodeFrom subInput :: _OtherAddresses
+                _OtherAddresses.Add(Address.decodeFrom subInput)
             | 7 ->
                 use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
@@ -753,7 +753,7 @@ module User =
           Email = _Email
           Status = _Status
           HomeAddress = _HomeAddress
-          OtherAddresses = List.rev _OtherAddresses
+          OtherAddresses = List.ofSeq _OtherAddresses
           Scores = _Scores
           Rating = _Rating
           Organization = _Organization
@@ -841,7 +841,7 @@ module User =
         let mutable _Email = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
         let mutable _HomeAddress = None
-        let mutable _OtherAddresses = []
+        let _OtherAddresses = ResizeArray<_>()
         let mutable _Scores = Map.empty
         let mutable _Rating = None
         let mutable _Organization = None
@@ -861,10 +861,10 @@ module User =
             | "home_address" -> _HomeAddress <- Some(Address.decodeJsonElement prop.Value)
             | "otherAddresses" ->
                 for item in prop.Value.EnumerateArray() do
-                    _OtherAddresses <- Address.decodeJsonElement item :: _OtherAddresses
+                    _OtherAddresses.Add(Address.decodeJsonElement item)
             | "other_addresses" ->
                 for item in prop.Value.EnumerateArray() do
-                    _OtherAddresses <- Address.decodeJsonElement item :: _OtherAddresses
+                    _OtherAddresses.Add(Address.decodeJsonElement item)
             | "scores" ->
                 for entry in prop.Value.EnumerateObject() do
                     _Scores <- Map.add (entry.Name) (entry.Value.GetInt32()) _Scores
@@ -884,7 +884,7 @@ module User =
           Email = _Email
           Status = _Status
           HomeAddress = _HomeAddress
-          OtherAddresses = List.rev _OtherAddresses
+          OtherAddresses = List.ofSeq _OtherAddresses
           Scores = _Scores
           Rating = _Rating
           Organization = _Organization

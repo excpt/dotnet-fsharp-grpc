@@ -58,7 +58,7 @@ module Invoice =
     let decodeFrom (input: Google.Protobuf.CodedInputStream) : Invoice =
         let mutable _Id = ""
         let mutable _Total = None
-        let mutable _LineItems = []
+        let _LineItems = ResizeArray<_>()
         let mutable tag = input.ReadTag()
 
         while tag <> 0u do
@@ -69,14 +69,14 @@ module Invoice =
                 _Total <- Some(Money.decodeFrom subInput)
             | 3 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _LineItems <- Money.decodeFrom subInput :: _LineItems
+                _LineItems.Add(Money.decodeFrom subInput)
             | _ -> input.SkipLastField()
 
             tag <- input.ReadTag()
 
         { Id = _Id
           Total = _Total
-          LineItems = List.rev _LineItems }
+          LineItems = List.ofSeq _LineItems }
 
     let decode (data: byte array) : Invoice =
         use input = new Google.Protobuf.CodedInputStream(data)
@@ -114,7 +114,7 @@ module Invoice =
     let decodeJsonElement (element: System.Text.Json.JsonElement) : Invoice =
         let mutable _Id = ""
         let mutable _Total = None
-        let mutable _LineItems = []
+        let _LineItems = ResizeArray<_>()
 
         for prop in element.EnumerateObject() do
             match prop.Name with
@@ -122,15 +122,15 @@ module Invoice =
             | "total" -> _Total <- Some(Money.decodeJsonElement prop.Value)
             | "lineItems" ->
                 for item in prop.Value.EnumerateArray() do
-                    _LineItems <- Money.decodeJsonElement item :: _LineItems
+                    _LineItems.Add(Money.decodeJsonElement item)
             | "line_items" ->
                 for item in prop.Value.EnumerateArray() do
-                    _LineItems <- Money.decodeJsonElement item :: _LineItems
+                    _LineItems.Add(Money.decodeJsonElement item)
             | _ -> ()
 
         { Id = _Id
           Total = _Total
-          LineItems = List.rev _LineItems }
+          LineItems = List.ofSeq _LineItems }
 
     let decodeJson (json: string) : Invoice =
         use doc = System.Text.Json.JsonDocument.Parse(json)

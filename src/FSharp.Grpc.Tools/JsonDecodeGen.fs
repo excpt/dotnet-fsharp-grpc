@@ -199,7 +199,7 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                                     "item",
                                     E "prop.Value.EnumerateArray()",
                                     E
-                                        $"_{fname} <- Google.Protobuf.JsonParser.Default.Parse<{wktType}>(item.GetRawText()) :: _{fname}"
+                                        $"_{fname}.Add(Google.Protobuf.JsonParser.Default.Parse<{wktType}>(item.GetRawText()))"
                                 )
                             )
                         )
@@ -210,7 +210,7 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                                 ForEachDoExpr(
                                     "item",
                                     E "prop.Value.EnumerateArray()",
-                                    E $"_{fname} <- {msgTypeName}.decodeJsonElement item :: _{fname}"
+                                    E $"_{fname}.Add({msgTypeName}.decodeJsonElement item)"
                                 )
                             )
                         )
@@ -220,11 +220,7 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                     clauses.Add(
                         MatchClauseExpr(
                             ConstantPat(Constant($"\"{pat}\"")),
-                            ForEachDoExpr(
-                                "item",
-                                E "prop.Value.EnumerateArray()",
-                                E $"_{fname} <- {readExpr} :: _{fname}"
-                            )
+                            ForEachDoExpr("item", E "prop.Value.EnumerateArray()", E $"_{fname}.Add({readExpr})")
                         )
                     )
         | Optional f ->
@@ -335,7 +331,7 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
         |> Seq.map (fun fv ->
             match fv with
             | MutableScalar(_, vn, defaultExpr) -> LetOrUseExpr(Value(vn, E defaultExpr).toMutable ())
-            | MutableList(_, vn) -> LetOrUseExpr(Value(vn, E "[]").toMutable ())
+            | MutableList(_, vn) -> LetOrUseExpr(Value(vn, E "ResizeArray<_>()"))
             | MutableMap(_, vn) -> LetOrUseExpr(Value(vn, E "Map.empty").toMutable ()))
         |> Seq.toList
 
@@ -345,7 +341,7 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
         |> Seq.map (fun fv ->
             match fv with
             | MutableScalar(fn, vn, _) -> RecordFieldExpr(fn, E vn)
-            | MutableList(fn, vn) -> RecordFieldExpr(fn, E $"List.rev {vn}")
+            | MutableList(fn, vn) -> RecordFieldExpr(fn, E $"List.ofSeq {vn}")
             | MutableMap(fn, vn) -> RecordFieldExpr(fn, E vn))
         |> Seq.toList
 
