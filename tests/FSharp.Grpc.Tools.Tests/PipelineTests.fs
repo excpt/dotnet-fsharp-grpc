@@ -8,13 +8,23 @@ open FsUnit.Xunit
 open FSharp.Grpc.Tools.Pipeline
 open FSharp.Grpc.Tools.ProtocResolver
 
-let private findProtocOrFail () =
+// A fresh clone won't have Grpc.Tools cached under ~/.nuget until the first restore,
+// so skip rather than fail when the resolver returns None — the test corpus is gated
+// on having protoc and the well-known types available, not on a test-logic concern.
+let private findProtocOrSkip () =
     findProtoc ()
-    |> Option.defaultWith (fun () -> failwith "protoc not found — install Grpc.Tools NuGet package")
+    |> Option.defaultWith (fun () ->
+        Assert.Skip("protoc not found in ~/.nuget/packages/grpc.tools — run `dotnet restore` to prime the cache")
+        Unchecked.defaultof<_>)
 
-let private wktPathOrFail () =
+let private wktPathOrSkip () =
     findWellKnownTypesPath ()
-    |> Option.defaultWith (fun () -> failwith "well-known types path not found — install Grpc.Tools NuGet package")
+    |> Option.defaultWith (fun () ->
+        Assert.Skip(
+            "well-known types not found in ~/.nuget/packages/grpc.tools — run `dotnet restore` to prime the cache"
+        )
+
+        Unchecked.defaultof<_>)
 
 let private withTempDir (f: string -> unit) =
     let dir =
@@ -35,8 +45,8 @@ let private spec (file: string) (services: GrpcServices) : ProtoSpec = { File = 
 
 let private runPipeline (dir: string) (protos: ProtoSpec list) =
     run
-        { Protoc = findProtocOrFail ()
-          ProtoPaths = [ dir; wktPathOrFail () ]
+        { Protoc = findProtocOrSkip ()
+          ProtoPaths = [ dir; wktPathOrSkip () ]
           OutputDir = dir
           Protos = protos }
     |> function
@@ -295,8 +305,8 @@ message Foo { string v = 1; }
 
             let result =
                 run
-                    { Protoc = findProtocOrFail ()
-                      ProtoPaths = [ dirWithQuote; wktPathOrFail () ]
+                    { Protoc = findProtocOrSkip ()
+                      ProtoPaths = [ dirWithQuote; wktPathOrSkip () ]
                       OutputDir = outerDir
                       Protos = [ spec "foo.proto" None ] }
 
@@ -315,8 +325,8 @@ let ``run returns Error when protoc fails to resolve a proto file`` () =
     withTempDir (fun dir ->
         let result =
             run
-                { Protoc = findProtocOrFail ()
-                  ProtoPaths = [ dir; wktPathOrFail () ]
+                { Protoc = findProtocOrSkip ()
+                  ProtoPaths = [ dir; wktPathOrSkip () ]
                   OutputDir = dir
                   Protos = [ spec "missing.proto" None ] }
 
