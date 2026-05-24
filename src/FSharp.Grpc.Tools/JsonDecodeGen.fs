@@ -89,20 +89,7 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                                 )
                             )
                         | Wrapper(wrapperScalar, _) ->
-                            let readExpr =
-                                match wrapperScalar with
-                                | "string" -> "prop.Value.GetString()"
-                                | "bool" -> "prop.Value.GetBoolean()"
-                                | "float" -> "prop.Value.GetDouble()"
-                                | "float32" -> "float32 (prop.Value.GetDouble())"
-                                | "int64" ->
-                                    "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()"
-                                | "uint64" ->
-                                    "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()"
-                                | "int" -> "prop.Value.GetInt32()"
-                                | "uint32" -> "prop.Value.GetUInt32()"
-                                | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
-                                | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+                            let readExpr = jsonReadWrapperExpr "prop.Value" wrapperScalar
 
                             clauses.Add(
                                 MatchClauseExpr(
@@ -307,20 +294,7 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                         )
                     )
                 | Wrapper(wrapperScalar, _) ->
-                    let readExpr =
-                        match wrapperScalar with
-                        | "string" -> "prop.Value.GetString()"
-                        | "bool" -> "prop.Value.GetBoolean()"
-                        | "float" -> "prop.Value.GetDouble()"
-                        | "float32" -> "float32 (prop.Value.GetDouble())"
-                        | "int64" ->
-                            "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()"
-                        | "uint64" ->
-                            "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()"
-                        | "int" -> "prop.Value.GetInt32()"
-                        | "uint32" -> "prop.Value.GetUInt32()"
-                        | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
-                        | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+                    let readExpr = jsonReadWrapperExpr "prop.Value" wrapperScalar
 
                     clauses.Add(
                         MatchClauseExpr(
