@@ -2,7 +2,7 @@
     <PropertyGroup>
         <RootNamespace>FSharp.Grpc</RootNamespace>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <Authors>contributors</Authors>
+        <Authors>Tim Rudat</Authors>
         <RepositoryUrl>https://github.com/excpt/dotnet-fsharp-grpc</RepositoryUrl>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
