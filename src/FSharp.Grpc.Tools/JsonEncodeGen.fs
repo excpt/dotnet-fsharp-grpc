@@ -71,21 +71,10 @@ let generateWriteJsonToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                                 )
                             )
                         | Wrapper(wrapperScalar, _) ->
-                            let writeExpr =
-                                match wrapperScalar with
-                                | "string" -> $"writer.WriteString(\"{caseJsonName}\", v)"
-                                | "bool" -> $"writer.WriteBoolean(\"{caseJsonName}\", v)"
-                                | "float" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
-                                | "float32" -> $"writer.WriteNumber(\"{caseJsonName}\", float v)"
-                                | "int" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
-                                | "uint32" -> $"writer.WriteNumber(\"{caseJsonName}\", v)"
-                                | "int64" -> $"writer.WriteString(\"{caseJsonName}\", string v)"
-                                | "uint64" -> $"writer.WriteString(\"{caseJsonName}\", string v)"
-                                | "byte array" ->
-                                    $"writer.WriteString(\"{caseJsonName}\", System.Convert.ToBase64String(v))"
-                                | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
-
-                            MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), E writeExpr)
+                            MatchClauseExpr(
+                                ConstantPat(Constant($"{duName}.{caseName} v")),
+                                E(jsonWriteWrapperExpr caseJsonName "v" wrapperScalar)
+                            )
                         | PlainMessage msgTypeName ->
                             MatchClauseExpr(
                                 ConstantPat(Constant($"{duName}.{caseName} v")),
@@ -361,24 +350,14 @@ let generateWriteJsonToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                     )
                 )
             | Wrapper(wrapperScalar, _) ->
-                let writeExpr =
-                    match wrapperScalar with
-                    | "string" -> $"writer.WriteString(\"{jsonName}\", v)"
-                    | "bool" -> $"writer.WriteBoolean(\"{jsonName}\", v)"
-                    | "float" -> $"writer.WriteNumber(\"{jsonName}\", v)"
-                    | "float32" -> $"writer.WriteNumber(\"{jsonName}\", float v)"
-                    | "int" -> $"writer.WriteNumber(\"{jsonName}\", v)"
-                    | "uint32" -> $"writer.WriteNumber(\"{jsonName}\", v)"
-                    | "int64" -> $"writer.WriteString(\"{jsonName}\", string v)"
-                    | "uint64" -> $"writer.WriteString(\"{jsonName}\", string v)"
-                    | "byte array" -> $"writer.WriteString(\"{jsonName}\", System.Convert.ToBase64String(v))"
-                    | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
-
                 stmts.Add(
                     OtherExpr(
                         MatchExpr(
                             E $"value.{fname}",
-                            [ MatchClauseExpr(ConstantPat(Constant("Some v")), E writeExpr)
+                            [ MatchClauseExpr(
+                                  ConstantPat(Constant("Some v")),
+                                  E(jsonWriteWrapperExpr jsonName "v" wrapperScalar)
+                              )
                               MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                         )
                     )

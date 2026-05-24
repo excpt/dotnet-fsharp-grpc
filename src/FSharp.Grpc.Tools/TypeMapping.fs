@@ -112,6 +112,42 @@ let wrapperTypeMap =
           ".google.protobuf.StringValue", "string"
           ".google.protobuf.BytesValue", "byte array" ]
 
+/// JSON write call for an unwrapped wrapper value as a named property. Picks the right
+/// `Utf8JsonWriter.Write*` overload for each F# scalar in `wrapperTypeMap`. Strings,
+/// 64-bit ints and bytes go through the string-typed JSON overloads per the proto
+/// JSON spec; everything else is a JSON number.
+let jsonWriteWrapperExpr (jsonName: string) (valueExpr: string) (wrapperScalar: string) : string =
+    match wrapperScalar with
+    | "string" -> $"writer.WriteString(\"{jsonName}\", {valueExpr})"
+    | "bool" -> $"writer.WriteBoolean(\"{jsonName}\", {valueExpr})"
+    | "float" -> $"writer.WriteNumber(\"{jsonName}\", {valueExpr})"
+    | "float32" -> $"writer.WriteNumber(\"{jsonName}\", float {valueExpr})"
+    | "int" -> $"writer.WriteNumber(\"{jsonName}\", {valueExpr})"
+    | "uint32" -> $"writer.WriteNumber(\"{jsonName}\", {valueExpr})"
+    | "int64" -> $"writer.WriteString(\"{jsonName}\", string {valueExpr})"
+    | "uint64" -> $"writer.WriteString(\"{jsonName}\", string {valueExpr})"
+    | "byte array" -> $"writer.WriteString(\"{jsonName}\", System.Convert.ToBase64String({valueExpr}))"
+    | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+
+/// JSON read expression for an unwrapped wrapper value from a `JsonElement` source.
+/// `sourceExpr` is the JsonElement-typed source (e.g. `"prop.Value"`); the returned
+/// string is an F# expression that yields the unwrapped scalar. 64-bit ints accept both
+/// JSON string and number per the proto JSON spec.
+let jsonReadWrapperExpr (sourceExpr: string) (wrapperScalar: string) : string =
+    match wrapperScalar with
+    | "string" -> $"{sourceExpr}.GetString()"
+    | "bool" -> $"{sourceExpr}.GetBoolean()"
+    | "float" -> $"{sourceExpr}.GetDouble()"
+    | "float32" -> $"float32 ({sourceExpr}.GetDouble())"
+    | "int64" ->
+        $"if {sourceExpr}.ValueKind = System.Text.Json.JsonValueKind.String then int64 ({sourceExpr}.GetString()) else {sourceExpr}.GetInt64()"
+    | "uint64" ->
+        $"if {sourceExpr}.ValueKind = System.Text.Json.JsonValueKind.String then uint64 ({sourceExpr}.GetString()) else {sourceExpr}.GetUInt64()"
+    | "int" -> $"{sourceExpr}.GetInt32()"
+    | "uint32" -> $"{sourceExpr}.GetUInt32()"
+    | "byte array" -> $"System.Convert.FromBase64String({sourceExpr}.GetString())"
+    | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+
 /// What a proto message-typed field actually refers to. Three categories handled
 /// distinctly by every generator:
 ///   - `WellKnown` — a Google.Protobuf well-known type with native serialisation
