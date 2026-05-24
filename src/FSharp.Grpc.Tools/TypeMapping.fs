@@ -117,6 +117,11 @@ let wrapperTypeMap =
 ///   - `WellKnown` — a Google.Protobuf well-known type with native serialisation
 ///   - `Wrapper`   — a proto3 wrapper (StringValue, Int32Value, …) that we unwrap to a scalar
 ///   - `PlainMessage` — any other generated message
+///
+/// Caller behaviour today: only singular and oneof positions unwrap wrappers. In
+/// repeated/map/optional positions the JSON generators still treat wrappers as
+/// plain messages — see the wkt-only `Map.tryFind` branches in JsonEncodeGen.fs /
+/// JsonDecodeGen.fs. Worth a follow-up if we want wrapper unwrapping there too.
 type MessageKind =
     | WellKnown of fsType: string
     | Wrapper of scalarFsType: string * className: string
