@@ -14,8 +14,11 @@
         <PackageReference Include="Grpc.Tools" PrivateAssets="all"/>
     </ItemGroup>
 
+    <!-- F# types come from the generator (compiled at build time from interop.proto),
+         not from the hand-written test type library. Keeps the benchmark honest:
+         what we measure is what users get. -->
     <ItemGroup>
-        <ProjectReference Include="../../tests/FSharp.Grpc.Integration.Tests.FSharp/FSharp.Grpc.Integration.Tests.FSharp.fsproj"/>
+        <ProjectReference Include="../FSharp.Grpc.Benchmarks.FSharp/FSharp.Grpc.Benchmarks.FSharp.fsproj"/>
     </ItemGroup>
 
     <ItemGroup>

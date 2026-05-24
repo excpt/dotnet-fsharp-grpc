@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- Import codegen build integration (NuGet consumers get this automatically) -->
+    <Import Project="../../src/FSharp.Grpc.Tools.Codegen/build/FSharp.Grpc.Tools.Codegen.props"/>
+    <Import Project="../../src/FSharp.Grpc.Tools.Codegen/build/FSharp.Grpc.Tools.Codegen.targets"/>
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <!-- Generated .fs files are prepended automatically by the codegen targets -->
+    <ItemGroup>
+        <Protobuf Include="protos/interop.proto"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf"/>
+        <PackageReference Include="Grpc.Tools" PrivateAssets="all" ExcludeAssets="build" GeneratePathProperty="true"/>
+    </ItemGroup>
+
+    <!-- Ensure the codegen tool is built before this project. The codegen project
+         is single-target (net8.0); UndefineProperties + SetTargetFramework tell
+         MSBuild not to propagate this project's TargetFramework when resolving it. -->
+    <ItemGroup>
+        <ProjectReference Include="../../src/FSharp.Grpc.Tools.Codegen/FSharp.Grpc.Tools.Codegen.fsproj"
+                          ReferenceOutputAssembly="false"
+                          SkipGetTargetFrameworkProperties="true"
+                          UndefineProperties="TargetFramework"
+                          SetTargetFramework="TargetFramework=net8.0"/>
+    </ItemGroup>
+
+</Project>

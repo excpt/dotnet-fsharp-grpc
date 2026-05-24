@@ -927,9 +927,9 @@ module UserProfile =
         let mutable _DisplayName = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
         let mutable _HomeAddress = None
-        let mutable _Tags = []
-        let mutable _Scores = []
-        let mutable _OtherAddresses = []
+        let _Tags = ResizeArray<_>()
+        let _Scores = ResizeArray<_>()
+        let _OtherAddresses = ResizeArray<_>()
         let mutable _Metadata = Map.empty
         let mutable _Ratings = Map.empty
         let mutable _Rating = None
@@ -944,7 +944,7 @@ module UserProfile =
             | 4 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
                 _HomeAddress <- Some(Address.decodeFrom subInput)
-            | 5 -> _Tags <- input.ReadString() :: _Tags
+            | 5 -> _Tags.Add(input.ReadString())
             | 6 ->
                 let wt = Google.Protobuf.WireFormat.GetTagWireType(tag)
 
@@ -952,12 +952,12 @@ module UserProfile =
                     use packedInput = input.ReadBytes().CreateCodedInput()
 
                     while not packedInput.IsAtEnd do
-                        _Scores <- packedInput.ReadInt32() :: _Scores
+                        _Scores.Add(packedInput.ReadInt32())
                 else
-                    _Scores <- input.ReadInt32() :: _Scores
+                    _Scores.Add(input.ReadInt32())
             | 7 ->
                 use subInput = input.ReadBytes().CreateCodedInput()
-                _OtherAddresses <- Address.decodeFrom subInput :: _OtherAddresses
+                _OtherAddresses.Add(Address.decodeFrom subInput)
             | 8 ->
                 use entryInput = input.ReadBytes().CreateCodedInput()
                 let mutable key = ""
@@ -999,9 +999,9 @@ module UserProfile =
           DisplayName = _DisplayName
           Status = _Status
           HomeAddress = _HomeAddress
-          Tags = List.rev _Tags
-          Scores = List.rev _Scores
-          OtherAddresses = List.rev _OtherAddresses
+          Tags = List.ofSeq _Tags
+          Scores = List.ofSeq _Scores
+          OtherAddresses = List.ofSeq _OtherAddresses
           Metadata = _Metadata
           Ratings = _Ratings
           Rating = _Rating

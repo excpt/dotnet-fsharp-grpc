@@ -6,7 +6,7 @@ using BenchmarkDotNet.Running;
 using Google.Protobuf;
 
 using Cs = Interop;
-using Fs = InteropFSharp;
+using Fs = Interopfs;
 
 BenchmarkRunner.Run(typeof(Program).Assembly);
 

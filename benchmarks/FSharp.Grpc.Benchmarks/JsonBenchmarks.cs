@@ -3,7 +3,7 @@ using BenchmarkDotNet.Attributes;
 using Google.Protobuf;
 
 using Cs = Interop;
-using Fs = InteropFSharp;
+using Fs = Interopfs;
 
 [MemoryDiagnoser]
 public class PersonJsonBenchmarks
