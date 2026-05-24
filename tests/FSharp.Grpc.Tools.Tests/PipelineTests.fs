@@ -39,6 +39,9 @@ let private runPipeline (dir: string) (protos: ProtoSpec list) =
           ProtoPaths = [ dir; wktPathOrFail () ]
           OutputDir = dir
           Protos = protos }
+    |> function
+        | Ok r -> r
+        | Error msg -> failwithf "pipeline failed: %s" msg
 
 let private messagesOnly (files: string list) =
     files |> List.map (fun f -> spec f None)
@@ -297,4 +300,26 @@ message Foo { string v = 1; }
                       OutputDir = outerDir
                       Protos = [ spec "foo.proto" None ] }
 
-            result.MessageFiles |> List.length |> should equal 1)
+            match result with
+            | Ok r -> r.MessageFiles |> List.length |> should equal 1
+            | Error msg -> failwithf "expected Ok, got Error: %s" msg)
+
+// ---------------------------------------------------------
+// (6) protoc failure surfaces as Error, not an exception
+// ---------------------------------------------------------
+
+[<Fact>]
+let ``run returns Error when protoc fails to resolve a proto file`` () =
+    // No proto written — protoc can't find missing.proto on the proto-path and exits non-zero.
+    // The pipeline must surface that as Error, not failwith.
+    withTempDir (fun dir ->
+        let result =
+            run
+                { Protoc = findProtocOrFail ()
+                  ProtoPaths = [ dir; wktPathOrFail () ]
+                  OutputDir = dir
+                  Protos = [ spec "missing.proto" None ] }
+
+        match result with
+        | Ok r -> failwithf "expected Error, got Ok %A" r
+        | Error msg -> msg |> should haveSubstring "missing.proto")

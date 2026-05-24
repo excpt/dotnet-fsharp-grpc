@@ -125,15 +125,20 @@ let main argv =
                     { s with
                         File = Path.GetFileName(s.File) })
 
-            let result =
+            let runResult =
                 run
                     { Protoc = protoc
                       ProtoPaths = allProtoPaths
                       OutputDir = args.OutputDir
                       Protos = protosForPipeline }
 
-            for p in result.MessageFiles @ result.StubFiles do
-                printfn "%s" p
+            match runResult with
+            | Error msg ->
+                eprintfn "%s" msg
+                1
+            | Ok result ->
+                for p in result.MessageFiles @ result.StubFiles do
+                    printfn "%s" p
 
-            printfn "%s" result.ManifestPath
-            0
+                printfn "%s" result.ManifestPath
+                0
