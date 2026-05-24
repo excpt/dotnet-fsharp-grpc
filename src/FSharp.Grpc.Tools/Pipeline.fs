@@ -31,13 +31,16 @@ let private runProtoc (protocPath: string) (protoPaths: string list) (protoFiles
     let tmp = Path.GetTempFileName()
 
     try
-        let pathArgs =
-            protoPaths |> List.map (fun p -> $"--proto_path=\"{p}\"") |> String.concat " "
-
-        let fileArgs = protoFiles |> List.map (fun f -> $"\"{f}\"") |> String.concat " "
-
         let psi = ProcessStartInfo(protocPath)
-        psi.Arguments <- $"--descriptor_set_out=\"{tmp}\" --include_imports {pathArgs} {fileArgs}"
+        psi.ArgumentList.Add($"--descriptor_set_out={tmp}")
+        psi.ArgumentList.Add("--include_imports")
+
+        for p in protoPaths do
+            psi.ArgumentList.Add($"--proto_path={p}")
+
+        for f in protoFiles do
+            psi.ArgumentList.Add(f)
+
         psi.RedirectStandardError <- true
         psi.UseShellExecute <- false
 
