@@ -182,13 +182,20 @@ let private delegateLambda (m: MethodDescriptorProto) =
     | true, false -> $"fun stream ctx -> service.{m.Name}(stream, ctx)"
     | true, true -> $"fun reqStream resStream ctx -> service.{m.Name}(reqStream, resStream, ctx)"
 
-/// Build the BindService body expression string.
-let private bindServiceBody (serviceName: string) (methods: MethodDescriptorProto list) =
+/// Build the BindService body as one widget statement per `binder.AddMethod` call.
+let private bindServiceStatements
+    (serviceName: string)
+    (methods: MethodDescriptorProto list)
+    : WidgetBuilder<ComputationExpressionStatement> list =
     methods
     |> List.map (fun m ->
         let bindingName = $"{toCamelCase m.Name}Method"
-        $"binder.AddMethod({serviceName}.{bindingName}, {delegateType m}({delegateLambda m}))")
-    |> String.concat "\n        "
+
+        OtherExpr(
+            ConstantExpr(
+                Constant($"binder.AddMethod({serviceName}.{bindingName}, {delegateType m}({delegateLambda m}))")
+            )
+        ))
 
 /// Generate server code for all services in a file.
 let generateServer (file: FileDescriptorProto) : WidgetBuilder<Oak> =
@@ -234,6 +241,9 @@ let generateServer (file: FileDescriptorProto) : WidgetBuilder<Oak> =
                               )
 
                           // BindService static method
+                          let bindBody: WidgetBuilder<Expr> =
+                              CompExprBodyExpr(bindServiceStatements serviceName methods)
+
                           Member(
                               "BindService",
                               ParenPat(
@@ -242,7 +252,7 @@ let generateServer (file: FileDescriptorProto) : WidgetBuilder<Oak> =
                                         ParameterPat("service", LongIdent serviceName) ]
                                   )
                               ),
-                              ConstantExpr(Constant(bindServiceBody serviceName methods))
+                              bindBody
                           )
                               .toStatic ()
                       })
