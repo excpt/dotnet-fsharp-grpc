@@ -10,6 +10,7 @@
     <ItemGroup>
         <Compile Include="ProtocResolver.fs"/>
         <Compile Include="TypeMapping.fs"/>
+        <Compile Include="FieldClass.fs"/>
         <Compile Include="WireFormat.fs"/>
         <Compile Include="ComputeSizeGen.fs"/>
         <Compile Include="WriteToGen.fs"/>

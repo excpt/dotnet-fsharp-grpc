@@ -5,6 +5,7 @@ open Fabulous.AST
 open Fantomas.Core.SyntaxOak
 open type Fabulous.AST.Ast
 open FSharp.Grpc.Tools.TypeMapping
+open FSharp.Grpc.Tools.FieldClass
 open FSharp.Grpc.Tools.WireFormat
 open FSharp.Grpc.Tools.DecodeGen
 
@@ -53,105 +54,88 @@ let private jsonParseKeyExpr (keyField: FieldDescriptorProto) (keyExpr: string) 
 
 /// Generate decodeJsonElement function as AST widget.
 let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) =
-    let mutable emittedOneofs = Set.empty
     let fieldVars = ResizeArray<FieldVar>()
     let clauses = ResizeArray<WidgetBuilder<MatchClauseNode>>()
 
-    for f in msg.Field |> Seq.sortBy (fun f -> f.Number) do
-        let fname = toPascalCase f.Name
-        let jsonName = f.JsonName
+    for kind in classifyFields msg do
+        match kind with
+        | OneofLeader(_, decl, oneofCases) ->
+            let duName = oneofTypeName msg.Name decl.Name
+            let duFieldName = toPascalCase decl.Name
+            fieldVars.Add(MutableScalar(duFieldName, $"_{duFieldName}", "None"))
 
-        if f.HasOneofIndex && not f.Proto3Optional then
-            let idx = f.OneofIndex
+            for c in oneofCases do
+                let caseName = toPascalCase c.Name
+                let caseJsonName = c.JsonName
 
-            if not (emittedOneofs |> Set.contains idx) then
-                emittedOneofs <- emittedOneofs |> Set.add idx
-                let decl = msg.OneofDecl.[idx]
-                let duName = oneofTypeName msg.Name decl.Name
-                let duFieldName = toPascalCase decl.Name
-                fieldVars.Add(MutableScalar(duFieldName, $"_{duFieldName}", "None"))
+                let patterns =
+                    if caseJsonName <> c.Name then
+                        [ caseJsonName; c.Name ]
+                    else
+                        [ caseJsonName ]
 
-                let oneofCases =
-                    msg.Field
-                    |> Seq.filter (fun of' -> of'.HasOneofIndex && not of'.Proto3Optional && of'.OneofIndex = idx)
-                    |> Seq.sortBy (fun of' -> of'.Number)
-                    |> Seq.toList
+                for pat in patterns do
+                    if c.Type = FieldDescriptorProto.Types.Type.Message then
+                        let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
 
-                for c in oneofCases do
-                    let caseName = toPascalCase c.Name
-                    let caseJsonName = c.JsonName
+                        match Map.tryFind c.TypeName wellKnownTypeMap with
+                        | Some wktType ->
+                            clauses.Add(
+                                MatchClauseExpr(
+                                    ConstantPat(Constant($"\"{pat}\"")),
+                                    LongIdentSetExpr(
+                                        $"_{duFieldName}",
+                                        E
+                                            $"Some({duName}.{caseName}(Google.Protobuf.JsonParser.Default.Parse<{wktType}>(prop.Value.GetRawText())))"
+                                    )
+                                )
+                            )
+                        | None ->
+                            match Map.tryFind c.TypeName wrapperTypeMap with
+                            | Some wrapperScalar ->
+                                let readExpr =
+                                    match wrapperScalar with
+                                    | "string" -> "prop.Value.GetString()"
+                                    | "bool" -> "prop.Value.GetBoolean()"
+                                    | "float" -> "prop.Value.GetDouble()"
+                                    | "float32" -> "float32 (prop.Value.GetDouble())"
+                                    | "int64" ->
+                                        "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()"
+                                    | "uint64" ->
+                                        "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()"
+                                    | "int" -> "prop.Value.GetInt32()"
+                                    | "uint32" -> "prop.Value.GetUInt32()"
+                                    | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
+                                    | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
 
-                    let patterns =
-                        if caseJsonName <> c.Name then
-                            [ caseJsonName; c.Name ]
-                        else
-                            [ caseJsonName ]
-
-                    for pat in patterns do
-                        if c.Type = FieldDescriptorProto.Types.Type.Message then
-                            let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
-
-                            match Map.tryFind c.TypeName wellKnownTypeMap with
-                            | Some wktType ->
+                                clauses.Add(
+                                    MatchClauseExpr(
+                                        ConstantPat(Constant($"\"{pat}\"")),
+                                        LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}({readExpr}))")
+                                    )
+                                )
+                            | None ->
                                 clauses.Add(
                                     MatchClauseExpr(
                                         ConstantPat(Constant($"\"{pat}\"")),
                                         LongIdentSetExpr(
                                             $"_{duFieldName}",
-                                            E
-                                                $"Some({duName}.{caseName}(Google.Protobuf.JsonParser.Default.Parse<{wktType}>(prop.Value.GetRawText())))"
+                                            E $"Some({duName}.{caseName}({msgTypeName}.decodeJsonElement prop.Value))"
                                         )
                                     )
                                 )
-                            | None ->
-                                match Map.tryFind c.TypeName wrapperTypeMap with
-                                | Some wrapperScalar ->
-                                    let readExpr =
-                                        match wrapperScalar with
-                                        | "string" -> "prop.Value.GetString()"
-                                        | "bool" -> "prop.Value.GetBoolean()"
-                                        | "float" -> "prop.Value.GetDouble()"
-                                        | "float32" -> "float32 (prop.Value.GetDouble())"
-                                        | "int64" ->
-                                            "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then int64 (prop.Value.GetString()) else prop.Value.GetInt64()"
-                                        | "uint64" ->
-                                            "if prop.Value.ValueKind = System.Text.Json.JsonValueKind.String then uint64 (prop.Value.GetString()) else prop.Value.GetUInt64()"
-                                        | "int" -> "prop.Value.GetInt32()"
-                                        | "uint32" -> "prop.Value.GetUInt32()"
-                                        | "byte array" -> "System.Convert.FromBase64String(prop.Value.GetString())"
-                                        | _ -> failwith $"unhandled wrapper scalar type: {wrapperScalar}"
+                    else
+                        let readExpr = jsonReadExpr currentMsgFqn "prop.Value" c
 
-                                    clauses.Add(
-                                        MatchClauseExpr(
-                                            ConstantPat(Constant($"\"{pat}\"")),
-                                            LongIdentSetExpr(
-                                                $"_{duFieldName}",
-                                                E $"Some({duName}.{caseName}({readExpr}))"
-                                            )
-                                        )
-                                    )
-                                | None ->
-                                    clauses.Add(
-                                        MatchClauseExpr(
-                                            ConstantPat(Constant($"\"{pat}\"")),
-                                            LongIdentSetExpr(
-                                                $"_{duFieldName}",
-                                                E
-                                                    $"Some({duName}.{caseName}({msgTypeName}.decodeJsonElement prop.Value))"
-                                            )
-                                        )
-                                    )
-                        else
-                            let readExpr = jsonReadExpr currentMsgFqn "prop.Value" c
-
-                            clauses.Add(
-                                MatchClauseExpr(
-                                    ConstantPat(Constant($"\"{pat}\"")),
-                                    LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}({readExpr}))")
-                                )
+                        clauses.Add(
+                            MatchClauseExpr(
+                                ConstantPat(Constant($"\"{pat}\"")),
+                                LongIdentSetExpr($"_{duFieldName}", E $"Some({duName}.{caseName}({readExpr}))")
                             )
-        elif tryGetMapEntry msg f |> Option.isSome then
-            let entry = (tryGetMapEntry msg f).Value
+                        )
+        | MapEntry(f, entry) ->
+            let fname = toPascalCase f.Name
+            let jsonName = f.JsonName
             let keyField = entry.Field.[0]
             let valueField = entry.Field.[1]
             fieldVars.Add(MutableMap(fname, $"_{fname}"))
@@ -208,7 +192,9 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                             )
                         )
                     )
-        elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
+        | Repeated f ->
+            let fname = toPascalCase f.Name
+            let jsonName = f.JsonName
             fieldVars.Add(MutableList(fname, $"_{fname}"))
 
             let patterns =
@@ -258,7 +244,9 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                             )
                         )
                     )
-        elif f.Proto3Optional then
+        | Optional f ->
+            let fname = toPascalCase f.Name
+            let jsonName = f.JsonName
             fieldVars.Add(MutableScalar(fname, $"_{fname}", "None"))
 
             let patterns =
@@ -299,7 +287,9 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                             LongIdentSetExpr($"_{fname}", E $"Some({readExpr})")
                         )
                     )
-        elif f.Type = FieldDescriptorProto.Types.Type.Message then
+        | Message f ->
+            let fname = toPascalCase f.Name
+            let jsonName = f.JsonName
             fieldVars.Add(MutableScalar(fname, $"_{fname}", "None"))
 
             let patterns =
@@ -353,7 +343,9 @@ let generateDecodeJsonElementAST (currentMsgFqn: string) (msg: DescriptorProto) 
                                 LongIdentSetExpr($"_{fname}", E $"Some({msgTypeName}.decodeJsonElement prop.Value)")
                             )
                         )
-        else
+        | Scalar f ->
+            let fname = toPascalCase f.Name
+            let jsonName = f.JsonName
             fieldVars.Add(MutableScalar(fname, $"_{fname}", fieldDefault currentMsgFqn f))
 
             let patterns =
