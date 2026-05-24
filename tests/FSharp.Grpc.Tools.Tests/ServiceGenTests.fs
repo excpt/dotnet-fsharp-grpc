@@ -38,18 +38,27 @@ let private protosDir =
 
     Path.Combine(asmDir, "protos")
 
-let private findProtocOrFail () =
+// A fresh clone won't have Grpc.Tools cached under ~/.nuget until the first restore,
+// so skip rather than fail when the resolver returns None.
+let private findProtocOrSkip () =
     findProtoc ()
-    |> Option.defaultWith (fun () -> failwith "protoc not found — install Grpc.Tools NuGet package")
+    |> Option.defaultWith (fun () ->
+        Assert.Skip("protoc not found in ~/.nuget/packages/grpc.tools — run `dotnet restore` to prime the cache")
+        Unchecked.defaultof<_>)
 
-let private wellKnownTypesPath () =
+let private wktPathOrSkip () =
     findWellKnownTypesPath ()
-    |> Option.defaultWith (fun () -> failwith "well-known types path not found — install Grpc.Tools NuGet package")
+    |> Option.defaultWith (fun () ->
+        Assert.Skip(
+            "well-known types not found in ~/.nuget/packages/grpc.tools — run `dotnet restore` to prime the cache"
+        )
+
+        Unchecked.defaultof<_>)
 
 /// Compile a .proto file to a FileDescriptorProto using protoc.
 let private compileProto (protoPath: string) =
-    let protoc = findProtocOrFail ()
-    let wktPath = wellKnownTypesPath ()
+    let protoc = findProtocOrSkip ()
+    let wktPath = wktPathOrSkip ()
     let tmpDescriptor = Path.GetTempFileName()
 
     try
