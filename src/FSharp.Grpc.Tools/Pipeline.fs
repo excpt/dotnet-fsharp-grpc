@@ -22,7 +22,7 @@ type Options =
       OutputDir: string
       Protos: ProtoSpec list }
 
-type Result =
+type RunResult =
     { MessageFiles: string list
       StubFiles: string list
       ManifestPath: string }
@@ -74,12 +74,11 @@ let private writeManifest (outputDir: string) (orderedPaths: string list) =
     File.WriteAllLines(manifestPath, lines)
     manifestPath
 
-let run (opts: Options) : Result =
+let run (opts: Options) : Result<RunResult, string> =
     let protoFiles = opts.Protos |> List.map (fun s -> s.File)
 
-    match runProtoc opts.Protoc opts.ProtoPaths protoFiles with
-    | Error msg -> failwith msg
-    | Ok descriptorSet ->
+    runProtoc opts.Protoc opts.ProtoPaths protoFiles
+    |> Result.map (fun descriptorSet ->
         Directory.CreateDirectory(opts.OutputDir) |> ignore
 
         let servicesByName =
@@ -120,4 +119,4 @@ let run (opts: Options) : Result =
 
         { MessageFiles = messageList
           StubFiles = stubList
-          ManifestPath = manifest }
+          ManifestPath = manifest })
