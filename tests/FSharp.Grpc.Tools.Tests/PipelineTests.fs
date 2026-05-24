@@ -2,6 +2,7 @@ module FSharp.Grpc.Tools.Tests.PipelineTests
 
 open System
 open System.IO
+open System.Runtime.InteropServices
 open Xunit
 open FsUnit.Xunit
 open FSharp.Grpc.Tools.Pipeline
@@ -262,3 +263,38 @@ service InventoryApi {
         exists "inventory.generated.fs" |> should be True
         exists "inventory.client.generated.fs" |> should be True
         exists "inventory.server.generated.fs" |> should be False)
+
+// ---------------------------------------------------------
+// (5) Proto path with a literal " in it
+// ---------------------------------------------------------
+
+[<Fact>]
+let ``run handles a proto-path containing a literal double-quote`` () =
+    // The previous protoc argv was built by interpolating each path inside "..." — a literal "
+    // in a directory name closed the quoting prematurely and broke --proto_path. ArgumentList.Add
+    // hands each value to the OS as a single argv element with no shell-style escaping required.
+    // Skipped on Windows since NTFS rejects " in filenames.
+    if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
+        ()
+    else
+        withTempDir (fun outerDir ->
+            let dirWithQuote = Path.Combine(outerDir, "has\"quote")
+            Directory.CreateDirectory(dirWithQuote) |> ignore
+
+            writeProto
+                dirWithQuote
+                "foo.proto"
+                """
+syntax = "proto3";
+package quoted;
+message Foo { string v = 1; }
+"""
+
+            let result =
+                run
+                    { Protoc = findProtocOrFail ()
+                      ProtoPaths = [ dirWithQuote; wktPathOrFail () ]
+                      OutputDir = outerDir
+                      Protos = [ spec "foo.proto" None ] }
+
+            result.MessageFiles |> List.length |> should equal 1)
