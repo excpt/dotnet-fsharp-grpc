@@ -3,37 +3,20 @@ module FSharp.Grpc.Tools.ProtocResolver
 open System
 open System.IO
 open System.Runtime.InteropServices
+open NuGet.Versioning
 
 /// Pick the newest version directory from a sequence of NuGet package version paths.
-/// Compares as SemVer (major.minor.patch) so 2.10.0 ranks above 2.9.0. Releases rank
-/// above pre-releases at the same version. Directories whose names don't parse as
-/// numeric SemVer are ignored.
+/// Parses each directory name with `NuGetVersion` for full SemVer 2.0 semantics —
+/// 2.10.0 ranks above 2.9.0, releases rank above pre-releases at the same version,
+/// and pre-release identifiers compare alphanumerically. Directory names that aren't
+/// valid NuGet versions are ignored.
 let pickLatestVersionDir (dirs: string seq) : string option =
-    let parseVersion (name: string) =
-        let core, hasPre =
-            match name.IndexOf('-') with
-            | -1 -> name, false
-            | i -> name.Substring(0, i), true
-
-        let parts = core.Split('.')
-
-        let nums =
-            parts
-            |> Array.choose (fun s ->
-                match Int32.TryParse(s) with
-                | true, n -> Some n
-                | _ -> None)
-
-        if nums.Length = parts.Length && nums.Length > 0 then
-            let major = nums.[0]
-            let minor = if nums.Length > 1 then nums.[1] else 0
-            let patch = if nums.Length > 2 then nums.[2] else 0
-            Some(major, minor, patch, not hasPre)
-        else
-            None
+    let tryParse (name: string) : NuGetVersion option =
+        let mutable v = Unchecked.defaultof<NuGetVersion>
+        if NuGetVersion.TryParse(name, &v) then Some v else None
 
     dirs
-    |> Seq.choose (fun dir -> Path.GetFileName(dir) |> parseVersion |> Option.map (fun v -> v, dir))
+    |> Seq.choose (fun dir -> tryParse (Path.GetFileName(dir)) |> Option.map (fun v -> v, dir))
     |> Seq.sortByDescending fst
     |> Seq.tryHead
     |> Option.map snd

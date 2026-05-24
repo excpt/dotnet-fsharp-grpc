@@ -24,6 +24,7 @@
     <ItemGroup>
         <PackageReference Include="Google.Protobuf"/>
         <PackageReference Include="Fabulous.AST"/>
+        <PackageReference Include="NuGet.Versioning"/>
     </ItemGroup>
 
     <ItemGroup>
