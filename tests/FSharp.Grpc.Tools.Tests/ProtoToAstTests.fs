@@ -115,7 +115,7 @@ let private findProtocOrSkip () =
         Assert.Skip("protoc not found in ~/.nuget/packages/grpc.tools — run `dotnet restore` to prime the cache")
         Unchecked.defaultof<_>)
 
-let private wellKnownTypesPath () =
+let private wktPathOrSkip () =
     findWellKnownTypesPath ()
     |> Option.defaultWith (fun () ->
         Assert.Skip(
@@ -127,7 +127,7 @@ let private wellKnownTypesPath () =
 /// Compile a .proto file to a FileDescriptorProto using protoc.
 let private compileProto (protoPath: string) =
     let protoc = findProtocOrSkip ()
-    let wktPath = wellKnownTypesPath ()
+    let wktPath = wktPathOrSkip ()
     let tmpDescriptor = Path.GetTempFileName()
 
     try
