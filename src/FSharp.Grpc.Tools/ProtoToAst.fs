@@ -5,6 +5,7 @@ open Fabulous.AST
 open Fantomas.Core.SyntaxOak
 open type Fabulous.AST.Ast
 open FSharp.Grpc.Tools.TypeMapping
+open FSharp.Grpc.Tools.FieldClass
 open FSharp.Grpc.Tools.WireFormat
 open FSharp.Grpc.Tools.ComputeSizeGen
 open FSharp.Grpc.Tools.WriteToGen
@@ -31,49 +32,27 @@ type private TypeDef =
 /// `Types.X` references for own nested types and absolute `Parent.Types.X`
 /// for cross-message refs.
 let rec private messageToTypes (currentMsgFqn: string) (msg: DescriptorProto) =
-    let mapEntries = mapEntryTypes msg
-
-    // Group real oneof fields (not proto3 synthetic optional oneofs).
-    let oneofFields =
-        msg.Field
-        |> Seq.filter (fun f -> f.HasOneofIndex && not f.Proto3Optional)
-        |> Seq.groupBy (fun f -> f.OneofIndex)
-        |> Map.ofSeq
+    let classified = classifyFields msg
 
     // Generate DUs only for real oneofs. DUs live at parent scope (sibling
     // of the record), NOT inside the Types submodule.
     let oneofDUs =
-        msg.OneofDecl
-        |> Seq.mapi (fun i decl ->
-            let fields = oneofFields |> Map.tryFind i |> Option.defaultValue Seq.empty
-            (i, decl, fields))
-        |> Seq.filter (fun (i, _, _) -> oneofFields |> Map.containsKey i)
-        |> Seq.map (fun (_, decl, fields) -> UnionDef(oneofToUnion msg.Name decl fields))
-        |> Seq.toList
-
-    // Track which oneof indices we've already emitted a record field for.
-    let mutable emittedOneofs = Set.empty
+        classified
+        |> List.choose (function
+            | OneofLeader(_, decl, fields) -> Some(UnionDef(oneofToUnion msg.Name decl fields))
+            | _ -> None)
 
     let recordFields =
-        msg.Field
-        |> Seq.sortBy (fun f -> f.Number)
-        |> Seq.choose (fun f ->
-            if f.HasOneofIndex && not f.Proto3Optional then
-                let idx = f.OneofIndex
-
-                if emittedOneofs |> Set.contains idx then
-                    None
-                else
-                    emittedOneofs <- emittedOneofs |> Set.add idx
-                    let decl = msg.OneofDecl.[idx]
-                    let duName = oneofTypeName msg.Name decl.Name
-                    Some(Field(toPascalCase decl.Name, LongIdent($"{duName} option")))
-            elif mapEntries |> Set.contains (simpleTypeName f.TypeName) then
-                // Map field: resolve via map entry.
-                Some(Field(toPascalCase f.Name, resolveFieldType msg f))
-            else
-                Some(Field(toPascalCase f.Name, resolveFieldType msg f)))
-        |> Seq.toList
+        classified
+        |> List.map (function
+            | OneofLeader(_, decl, _) ->
+                let duName = oneofTypeName msg.Name decl.Name
+                Field(toPascalCase decl.Name, LongIdent($"{duName} option"))
+            | Scalar f
+            | MapEntry(f, _)
+            | Repeated f
+            | Optional f
+            | Message f -> Field(toPascalCase f.Name, resolveFieldType msg f))
 
     let record =
         RecordDef(
@@ -84,25 +63,17 @@ let rec private messageToTypes (currentMsgFqn: string) (msg: DescriptorProto) =
         )
 
     // Build companion module with `empty` value.
-    let mutable emittedOneofsForEmpty = Set.empty
-
     let emptyFields =
-        msg.Field
-        |> Seq.sortBy (fun f -> f.Number)
-        |> Seq.choose (fun f ->
-            if f.HasOneofIndex && not f.Proto3Optional then
-                let idx = f.OneofIndex
-
-                if emittedOneofsForEmpty |> Set.contains idx then
-                    None
-                else
-                    emittedOneofsForEmpty <- emittedOneofsForEmpty |> Set.add idx
-                    let decl = msg.OneofDecl.[idx]
-                    let duName = oneofTypeName msg.Name decl.Name
-                    Some(RecordFieldExpr(toPascalCase decl.Name, oneofDefaultExpr duName))
-            else
-                Some(RecordFieldExpr(toPascalCase f.Name, defaultValueExpr msg f)))
-        |> Seq.toList
+        classified
+        |> List.map (function
+            | OneofLeader(_, decl, _) ->
+                let duName = oneofTypeName msg.Name decl.Name
+                RecordFieldExpr(toPascalCase decl.Name, oneofDefaultExpr duName)
+            | Scalar f
+            | MapEntry(f, _)
+            | Repeated f
+            | Optional f
+            | Message f -> RecordFieldExpr(toPascalCase f.Name, defaultValueExpr msg f))
 
     // Nested types (enums and messages) — recursively built so each carries
     // its own nested Types submodule chain.

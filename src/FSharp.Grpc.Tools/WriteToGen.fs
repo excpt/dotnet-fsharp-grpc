@@ -5,117 +5,100 @@ open Fabulous.AST
 open Fantomas.Core.SyntaxOak
 open type Fabulous.AST.Ast
 open FSharp.Grpc.Tools.TypeMapping
+open FSharp.Grpc.Tools.FieldClass
 open FSharp.Grpc.Tools.WireFormat
 
 /// Generate writeTo function as AST widget.
 let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
-    let mutable emittedOneofs = Set.empty
     let stmts = ResizeArray<WidgetBuilder<ComputationExpressionStatement>>()
-    let mutable hasBody = false
+    let classified = classifyFields msg
 
-    for f in msg.Field |> Seq.sortBy (fun f -> f.Number) do
-        hasBody <- true
-        let tag = f.Number
-        let fname = toPascalCase f.Name
-        let wt = wireType f
+    for kind in classified do
+        match kind with
+        | OneofLeader(_, decl, oneofCases) ->
+            let duName = oneofTypeName msg.Name decl.Name
+            let duFieldName = toPascalCase decl.Name
 
-        if f.HasOneofIndex && not f.Proto3Optional then
-            let idx = f.OneofIndex
+            let clauses =
+                oneofCases
+                |> List.map (fun c ->
+                    let caseName = toPascalCase c.Name
+                    let caseTag = c.Number
+                    let caseWt = wireType c
 
-            if not (emittedOneofs |> Set.contains idx) then
-                emittedOneofs <- emittedOneofs |> Set.add idx
-                let decl = msg.OneofDecl.[idx]
-                let duName = oneofTypeName msg.Name decl.Name
-                let duFieldName = toPascalCase decl.Name
+                    if c.Type = FieldDescriptorProto.Types.Type.Message then
+                        let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
 
-                let oneofCases =
-                    msg.Field
-                    |> Seq.filter (fun of' -> of'.HasOneofIndex && not of'.Proto3Optional && of'.OneofIndex = idx)
-                    |> Seq.sortBy (fun of' -> of'.Number)
-                    |> Seq.toList
-
-                let clauses =
-                    oneofCases
-                    |> List.map (fun c ->
-                        let caseName = toPascalCase c.Name
-                        let caseTag = c.Number
-                        let caseWt = wireType c
-
-                        if c.Type = FieldDescriptorProto.Types.Type.Message then
-                            let msgTypeName = qualifiedRef currentMsgFqn c.TypeName
-
-                            let body =
-                                match Map.tryFind c.TypeName wellKnownTypeMap with
+                        let body =
+                            match Map.tryFind c.TypeName wellKnownTypeMap with
+                            | Some _ ->
+                                CompExprBodyExpr(
+                                    [ LetOrUseExpr(Value("subSize", E "v.CalculateSize()"))
+                                      OtherExpr(
+                                          E
+                                              $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
+                                      )
+                                      OtherExpr(E "output.WriteLength(subSize)")
+                                      OtherExpr(E "v.WriteTo(output)") ]
+                                )
+                            | None ->
+                                match Map.tryFind c.TypeName wrapperTypeMap with
                                 | Some _ ->
+                                    let wrapperClassName = simpleTypeName c.TypeName
+
                                     CompExprBodyExpr(
-                                        [ LetOrUseExpr(Value("subSize", E "v.CalculateSize()"))
+                                        [ LetOrUseExpr(
+                                              Value(
+                                                  "wrapper",
+                                                  E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"
+                                              )
+                                          )
+                                          OtherExpr(E "wrapper.Value <- v")
+                                          LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
                                           OtherExpr(
                                               E
                                                   $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
                                           )
                                           OtherExpr(E "output.WriteLength(subSize)")
-                                          OtherExpr(E "v.WriteTo(output)") ]
+                                          OtherExpr(E "wrapper.WriteTo(output)") ]
                                     )
                                 | None ->
-                                    match Map.tryFind c.TypeName wrapperTypeMap with
-                                    | Some _ ->
-                                        let wrapperClassName = simpleTypeName c.TypeName
+                                    CompExprBodyExpr(
+                                        [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
+                                          OtherExpr(
+                                              E
+                                                  $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
+                                          )
+                                          OtherExpr(E "output.WriteLength(subSize)")
+                                          OtherExpr(E $"{msgTypeName}.writeTo output v") ]
+                                    )
 
-                                        CompExprBodyExpr(
-                                            [ LetOrUseExpr(
-                                                  Value(
-                                                      "wrapper",
-                                                      E $"Google.Protobuf.WellKnownTypes.{wrapperClassName}()"
-                                                  )
-                                              )
-                                              OtherExpr(E "wrapper.Value <- v")
-                                              LetOrUseExpr(Value("subSize", E "wrapper.CalculateSize()"))
-                                              OtherExpr(
-                                                  E
-                                                      $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                              )
-                                              OtherExpr(E "output.WriteLength(subSize)")
-                                              OtherExpr(E "wrapper.WriteTo(output)") ]
-                                        )
-                                    | None ->
-                                        CompExprBodyExpr(
-                                            [ LetOrUseExpr(Value("subSize", E $"{msgTypeName}.computeSize v"))
-                                              OtherExpr(
-                                                  E
-                                                      $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.LengthDelimited)"
-                                              )
-                                              OtherExpr(E "output.WriteLength(subSize)")
-                                              OtherExpr(E $"{msgTypeName}.writeTo output v") ]
-                                        )
+                        MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), body)
+                    else
+                        let writeCall = writeExpr "output" "v" c
 
-                            MatchClauseExpr(ConstantPat(Constant($"{duName}.{caseName} v")), body)
-                        else
-                            let writeCall = writeExpr "output" "v" c
+                        MatchClauseExpr(
+                            ConstantPat(Constant($"{duName}.{caseName} v")),
+                            CompExprBodyExpr(
+                                [ OtherExpr(
+                                      E $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.{caseWt})"
+                                  )
+                                  OtherExpr(E writeCall) ]
+                            )
+                        ))
 
-                            MatchClauseExpr(
-                                ConstantPat(Constant($"{duName}.{caseName} v")),
-                                CompExprBodyExpr(
-                                    [ OtherExpr(
-                                          E $"output.WriteTag({caseTag}, Google.Protobuf.WireFormat.WireType.{caseWt})"
-                                      )
-                                      OtherExpr(E writeCall) ]
-                                )
-                            ))
-
-                stmts.Add(
-                    OtherExpr(
-                        MatchExpr(
-                            E $"value.{duFieldName}",
-                            [ MatchClauseExpr(
-                                  ConstantPat(Constant("Some oneofValue")),
-                                  MatchExpr(E "oneofValue", clauses)
-                              )
-                              MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
-                        )
+            stmts.Add(
+                OtherExpr(
+                    MatchExpr(
+                        E $"value.{duFieldName}",
+                        [ MatchClauseExpr(ConstantPat(Constant("Some oneofValue")), MatchExpr(E "oneofValue", clauses))
+                          MatchClauseExpr(ConstantPat(Constant("None")), E "()") ]
                     )
                 )
-        elif tryGetMapEntry msg f |> Option.isSome then
-            let entry = (tryGetMapEntry msg f).Value
+            )
+        | MapEntry(f, entry) ->
+            let tag = f.Number
+            let fname = toPascalCase f.Name
             let keyField = entry.Field.[0]
             let valueField = entry.Field.[1]
             let keyWt = wireType keyField
@@ -142,7 +125,10 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                             $"value.{fname} |> Map.iter (fun mapKey mapValue -> let entrySize = Google.Protobuf.CodedOutputStream.ComputeTagSize(1) + {keySizeExpr} + Google.Protobuf.CodedOutputStream.ComputeTagSize(2) + {valueSizeExpr} in output.WriteTag({tag}, Google.Protobuf.WireFormat.WireType.LengthDelimited); output.WriteLength(entrySize); output.WriteTag(1, Google.Protobuf.WireFormat.WireType.{keyWt}); {keyWriteCall}; output.WriteTag(2, Google.Protobuf.WireFormat.WireType.{valueWt}); {valueWriteCall})"
                     )
                 )
-        elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
+        | Repeated f ->
+            let tag = f.Number
+            let fname = toPascalCase f.Name
+
             if f.Type = FieldDescriptorProto.Types.Type.Message then
                 let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
@@ -188,7 +174,11 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                         )
                     )
                 )
-        elif f.Proto3Optional then
+        | Optional f ->
+            let tag = f.Number
+            let fname = toPascalCase f.Name
+            let wt = wireType f
+
             if f.Type = FieldDescriptorProto.Types.Type.Message then
                 let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
@@ -230,7 +220,9 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                         )
                     )
                 )
-        elif f.Type = FieldDescriptorProto.Types.Type.Message then
+        | Message f ->
+            let tag = f.Number
+            let fname = toPascalCase f.Name
             let msgTypeName = qualifiedRef currentMsgFqn f.TypeName
 
             match Map.tryFind f.TypeName wellKnownTypeMap with
@@ -308,7 +300,10 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                             )
                         )
                     )
-        else
+        | Scalar f ->
+            let tag = f.Number
+            let fname = toPascalCase f.Name
+            let wt = wireType f
             let check = defaultCheckExpr fname f
             let writeCall = writeExpr "output" $"value.{fname}" f
 
@@ -324,7 +319,7 @@ let generateWriteToAST (currentMsgFqn: string) (msg: DescriptorProto) =
                 )
             )
 
-    if not hasBody then
+    if List.isEmpty classified then
         stmts.Add(OtherExpr(E "()"))
 
     Function(

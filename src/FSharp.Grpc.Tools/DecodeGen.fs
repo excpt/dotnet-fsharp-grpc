@@ -5,6 +5,7 @@ open Fabulous.AST
 open Fantomas.Core.SyntaxOak
 open type Fabulous.AST.Ast
 open FSharp.Grpc.Tools.TypeMapping
+open FSharp.Grpc.Tools.FieldClass
 open FSharp.Grpc.Tools.WireFormat
 
 /// Default literal for a scalar/enum field in decode (map key/value defaults).
@@ -251,38 +252,35 @@ let decodeScalarClause (f: FieldDescriptorProto) (fname: string) (fieldNum: int)
 
 /// Generate decodeFrom function as AST widget (reads from existing CodedInputStream).
 let generateDecodeFromAST (currentMsgFqn: string) (msg: DescriptorProto) =
-    let mutable emittedOneofs = Set.empty
     let fieldVars = ResizeArray<FieldVar>()
     let clauses = ResizeArray<WidgetBuilder<MatchClauseNode>>()
 
-    for f in msg.Field |> Seq.sortBy (fun f -> f.Number) do
-        let fname = toPascalCase f.Name
-        let fieldNum = f.Number
-
-        if f.HasOneofIndex && not f.Proto3Optional then
-            let idx = f.OneofIndex
-
-            if not (emittedOneofs |> Set.contains idx) then
-                emittedOneofs <- emittedOneofs |> Set.add idx
-                let decl = msg.OneofDecl.[idx]
-                let duFieldName = toPascalCase decl.Name
-                fieldVars.Add(MutableScalar(duFieldName, $"_{duFieldName}", "None"))
-                clauses.AddRange(decodeOneofClauses currentMsgFqn msg idx)
-        elif tryGetMapEntry msg f |> Option.isSome then
+    for kind in classifyFields msg do
+        match kind with
+        | OneofLeader(idx, decl, _) ->
+            let duFieldName = toPascalCase decl.Name
+            fieldVars.Add(MutableScalar(duFieldName, $"_{duFieldName}", "None"))
+            clauses.AddRange(decodeOneofClauses currentMsgFqn msg idx)
+        | MapEntry(f, _) ->
+            let fname = toPascalCase f.Name
             fieldVars.Add(MutableMap(fname, $"_{fname}"))
-            clauses.Add(decodeMapClause currentMsgFqn msg f fname fieldNum)
-        elif f.Label = FieldDescriptorProto.Types.Label.Repeated then
+            clauses.Add(decodeMapClause currentMsgFqn msg f fname f.Number)
+        | Repeated f ->
+            let fname = toPascalCase f.Name
             fieldVars.Add(MutableList(fname, $"_{fname}"))
-            clauses.Add(decodeRepeatedClause currentMsgFqn f fname fieldNum)
-        elif f.Proto3Optional then
+            clauses.Add(decodeRepeatedClause currentMsgFqn f fname f.Number)
+        | Optional f ->
+            let fname = toPascalCase f.Name
             fieldVars.Add(MutableScalar(fname, $"_{fname}", "None"))
-            clauses.Add(decodeOptionalClause currentMsgFqn f fname fieldNum)
-        elif f.Type = FieldDescriptorProto.Types.Type.Message then
+            clauses.Add(decodeOptionalClause currentMsgFqn f fname f.Number)
+        | Message f ->
+            let fname = toPascalCase f.Name
             fieldVars.Add(MutableScalar(fname, $"_{fname}", "None"))
-            clauses.Add(decodeMessageClause currentMsgFqn f fname fieldNum)
-        else
+            clauses.Add(decodeMessageClause currentMsgFqn f fname f.Number)
+        | Scalar f ->
+            let fname = toPascalCase f.Name
             fieldVars.Add(MutableScalar(fname, $"_{fname}", fieldDefault currentMsgFqn f))
-            clauses.Add(decodeScalarClause f fname fieldNum)
+            clauses.Add(decodeScalarClause f fname f.Number)
 
     clauses.Add(MatchClauseExpr(ConstantPat(Constant("_")), E "input.SkipLastField()"))
 
