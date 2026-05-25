@@ -14,6 +14,8 @@ auto-grouping wouldn't capture anything useful.
 <a name="0.1.9"></a>
 ## [0.1.9](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.9) (2026-05-25)
 
+Re-publish of 0.1.8 — **no source changes**. NuGet packages are immutable and cannot be replaced, so the 0.1.8 package is unlisted and this version ships the same changes under a clean release. See [0.1.8](#0.1.8) below for the full change list (#37, #18, #36).
+
 <a name="0.1.8"></a>
 ## [0.1.8](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.8) (2026-05-25)
 
