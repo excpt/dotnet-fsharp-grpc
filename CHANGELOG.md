@@ -11,6 +11,20 @@ no Conventional-Commits convention is enforced in this repo, so
 auto-grouping wouldn't capture anything useful.
 
 
+<a name="0.1.8"></a>
+## [0.1.8](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.8) (2026-05-25)
+
+### Changed
+- Generated decoders read nested messages, packed repeated fields, and map entries **in place** from the parent `CodedInputStream` — bounded by the public `Position` — instead of copying each sub-region into a fresh `byte[]` and a second `CodedInputStream` (`ReadBytes().CreateCodedInput()`). F# decode of message-heavy payloads allocates substantially less (high-cardinality `UserProfile` 109.27 KB → 82.3 KB, −25%; small `UserProfile` 5,200 B → 2,752 B, −47%) and runs faster. Well-known/wrapper fields use `CodedInputStream.ReadMessage`. `list`/`option` surface types are unchanged (#37, #18).
+
+### Fixed
+- Codegen MSBuild target tracks the generator tool DLL as a build input, so a rebuilt or upgraded generator re-runs codegen instead of silently serving stale `obj/protos/*.generated.fs` (#37, #36).
+
+### Added
+- `-p:FSharpGrpc_ForceCodegen=true` forces unconditional proto regeneration, bypassing the incremental check (#37, #36).
+- High-cardinality decode benchmark (`HighCardinalityUserProfileBenchmarks`) guarding the sub-message decode path against allocation regressions (#37).
+
+
 <a name="0.1.7"></a>
 ## [0.1.7](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.7) (2026-05-24)
 
