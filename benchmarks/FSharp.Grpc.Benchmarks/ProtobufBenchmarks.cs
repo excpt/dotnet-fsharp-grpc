@@ -1,3 +1,5 @@
+using System.Linq;
+
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 
@@ -177,6 +179,60 @@ public class UserProfileBenchmarks
 
     [Benchmark(Description = "F# Encode")]
     public byte[] FSharp_Encode() => Fs.UserProfileModule.encode(_fsProfile);
+
+    [Benchmark(Description = "C# Decode")]
+    public Cs.UserProfile CSharp_Decode() => Cs.UserProfile.Parser.ParseFrom(_encodedBytes);
+
+    [Benchmark(Description = "F# Decode")]
+    public Fs.UserProfile FSharp_Decode() => Fs.UserProfileModule.decode(_encodedBytes);
+}
+
+[MemoryDiagnoser]
+public class HighCardinalityUserProfileBenchmarks
+{
+    // Same UserProfile shape as the small-N benchmark, but with 1000 Scores and
+    // 100 OtherAddresses to surface the asymptotic cost of the repeated-field and
+    // sub-message decode paths — where the in-place (Position-bounded) reader's win
+    // over the old `ReadBytes().CreateCodedInput()` buffer-copy is visible.
+
+    private readonly Cs.UserProfile _csProfile;
+    private readonly Fs.UserProfile _fsProfile;
+    private byte[] _encodedBytes = null!;
+
+    public HighCardinalityUserProfileBenchmarks()
+    {
+        var scores = Enumerable.Range(0, 1000).ToArray();
+        var csAddrs = Enumerable.Range(0, 100)
+            .Select(i => new Cs.Address { Street = $"{i} Main St", City = "Springfield" })
+            .ToArray();
+        var fsAddrs = Enumerable.Range(0, 100)
+            .Select(i => new Fs.Address($"{i} Main St", "Springfield", Microsoft.FSharp.Core.FSharpOption<string>.None))
+            .ToArray();
+
+        _csProfile = new Cs.UserProfile { Id = "user-12345", DisplayName = "Alice" };
+        _csProfile.Scores.AddRange(scores);
+        _csProfile.OtherAddresses.AddRange(csAddrs);
+
+        _fsProfile = new Fs.UserProfile(
+            id: "user-12345",
+            displayName: "Alice",
+            status: Fs.Status.StatusActive,
+            homeAddress: Microsoft.FSharp.Core.FSharpOption<Fs.Address>.None,
+            tags: Microsoft.FSharp.Collections.ListModule.Empty<string>(),
+            scores: Microsoft.FSharp.Collections.ListModule.OfArray(scores),
+            otherAddresses: Microsoft.FSharp.Collections.ListModule.OfArray(fsAddrs),
+            metadata: Microsoft.FSharp.Collections.MapModule.Empty<string, string>(),
+            ratings: Microsoft.FSharp.Collections.MapModule.Empty<string, int>(),
+            rating: Microsoft.FSharp.Core.FSharpOption<double>.None,
+            contact: Microsoft.FSharp.Core.FSharpOption<Fs.UserProfileContact>.None
+        );
+    }
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        _encodedBytes = _csProfile.ToByteArray();
+    }
 
     [Benchmark(Description = "C# Decode")]
     public Cs.UserProfile CSharp_Decode() => Cs.UserProfile.Parser.ParseFrom(_encodedBytes);
