@@ -11,6 +11,9 @@ no Conventional-Commits convention is enforced in this repo, so
 auto-grouping wouldn't capture anything useful.
 
 
+<a name="0.1.9"></a>
+## [0.1.9](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.9) (2026-05-25)
+
 <a name="0.1.8"></a>
 ## [0.1.8](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.8) (2026-05-25)
 
