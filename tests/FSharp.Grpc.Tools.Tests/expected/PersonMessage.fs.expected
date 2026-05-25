@@ -37,24 +37,23 @@ module Person =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Person =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Person =
         let mutable _Name = ""
         let mutable _Age = 0
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | 2 -> _Age <- input.ReadInt32()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
-
         { Name = _Name; Age = _Age }
 
     let decode (data: byte array) : Person =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Person) : unit =
         writer.WriteStartObject()

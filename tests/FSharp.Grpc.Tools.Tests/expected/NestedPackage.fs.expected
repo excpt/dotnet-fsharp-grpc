@@ -37,24 +37,23 @@ module Account =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Account =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Account =
         let mutable _Id = ""
         let mutable _DisplayName = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Id <- input.ReadString()
             | 2 -> _DisplayName <- input.ReadString()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
-
         { Id = _Id; DisplayName = _DisplayName }
 
     let decode (data: byte array) : Account =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Account) : unit =
         writer.WriteStartObject()

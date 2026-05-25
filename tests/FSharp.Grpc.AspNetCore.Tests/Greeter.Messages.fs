@@ -33,22 +33,22 @@ module HelloRequest =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : HelloRequest =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : HelloRequest =
         let mutable _Name = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Name = _Name }
 
     let decode (data: byte array) : HelloRequest =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: HelloRequest) : unit =
         writer.WriteStartObject()
@@ -112,22 +112,22 @@ module HelloReply =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : HelloReply =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : HelloReply =
         let mutable _Message = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Message <- input.ReadString()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Message = _Message }
 
     let decode (data: byte array) : HelloReply =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: HelloReply) : unit =
         writer.WriteStartObject()

@@ -84,22 +84,21 @@ module Address =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Address =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Address =
         let mutable _Street = ""
         let mutable _City = ""
         let mutable _CountryCode = ""
         let mutable _ZipCode = None
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Street <- input.ReadString()
             | 2 -> _City <- input.ReadString()
             | 3 -> _CountryCode <- input.ReadString()
             | 4 -> _ZipCode <- Some(input.ReadString())
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Street = _Street
           City = _City
@@ -108,7 +107,7 @@ module Address =
 
     let decode (data: byte array) : Address =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
         writer.WriteStartObject()
@@ -238,22 +237,22 @@ module Organization =
                     output.Flush()
                     buffer
 
-            let decodeFrom (input: Google.Protobuf.CodedInputStream) : Department =
+            let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Department =
                 let mutable _Name = ""
                 let mutable _Members = []
                 let mutable _Priority = LanguagePrimitives.EnumOfValue 0
-                let mutable tag = input.ReadTag()
 
-                while tag <> 0u do
+                while input.Position < endPos do
+                    let tag = input.ReadTag()
+
                     match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
                     | 1 -> _Name <- input.ReadString()
                     | 2 ->
-                        use subInput = input.ReadBytes().CreateCodedInput()
-                        _Members <- User.decodeFrom subInput :: _Members
+                        let endPos = int64 (input.ReadLength()) + input.Position
+                        let msg = User.decodeFrom input endPos
+                        _Members <- msg :: _Members
                     | 3 -> _Priority <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
                     | _ -> input.SkipLastField()
-
-                    tag <- input.ReadTag()
 
                 { Name = _Name
                   Members = List.rev _Members
@@ -261,7 +260,7 @@ module Organization =
 
             let decode (data: byte array) : Department =
                 use input = new Google.Protobuf.CodedInputStream(data)
-                decodeFrom input
+                decodeFrom input (int64 data.Length)
 
             let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Department) : unit =
                 writer.WriteStartObject()
@@ -389,42 +388,40 @@ module Organization =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Organization =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Organization =
         let mutable _Name = ""
         let mutable _BillingAddress = None
         let mutable _DomainNames = []
         let mutable _Metadata = Map.empty
         let mutable _Departments = []
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | 2 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _BillingAddress <- Some(Address.decodeFrom subInput)
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Address.decodeFrom input endPos
+                _BillingAddress <- Some(msg)
             | 3 -> _DomainNames <- input.ReadString() :: _DomainNames
             | 4 ->
-                use entryInput = input.ReadBytes().CreateCodedInput()
+                let endPos = int64 (input.ReadLength()) + input.Position
                 let mutable key = ""
                 let mutable mapValue = ""
-                let mutable entryTag = entryInput.ReadTag()
 
-                while entryTag <> 0u do
-                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
-                    | 1 -> key <- entryInput.ReadString()
-                    | 2 -> mapValue <- entryInput.ReadString()
-                    | _ -> entryInput.SkipLastField()
-
-                    entryTag <- entryInput.ReadTag()
+                while input.Position < endPos do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(input.ReadTag()) with
+                    | 1 -> key <- input.ReadString()
+                    | 2 -> mapValue <- input.ReadString()
+                    | _ -> input.SkipLastField()
 
                 _Metadata <- Map.add key mapValue _Metadata
             | 5 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _Departments <- Types.Department.decodeFrom subInput :: _Departments
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Types.Department.decodeFrom input endPos
+                _Departments <- msg :: _Departments
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Name = _Name
           BillingAddress = _BillingAddress
@@ -434,7 +431,7 @@ module Organization =
 
     let decode (data: byte array) : Organization =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Organization) : unit =
         writer.WriteStartObject()
@@ -694,7 +691,7 @@ module User =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : User =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : User =
         let mutable _Id = ""
         let mutable _DisplayName = ""
         let mutable _Email = ""
@@ -706,47 +703,47 @@ module User =
         let mutable _Organization = None
         let mutable _Contact = None
         let mutable _Manager = None
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Id <- input.ReadString()
             | 2 -> _DisplayName <- input.ReadString()
             | 3 -> _Email <- input.ReadString()
             | 4 -> _Status <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
             | 5 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _HomeAddress <- Some(Address.decodeFrom subInput)
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Address.decodeFrom input endPos
+                _HomeAddress <- Some(msg)
             | 6 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _OtherAddresses <- Address.decodeFrom subInput :: _OtherAddresses
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Address.decodeFrom input endPos
+                _OtherAddresses <- msg :: _OtherAddresses
             | 7 ->
-                use entryInput = input.ReadBytes().CreateCodedInput()
+                let endPos = int64 (input.ReadLength()) + input.Position
                 let mutable key = ""
                 let mutable mapValue = 0
-                let mutable entryTag = entryInput.ReadTag()
 
-                while entryTag <> 0u do
-                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
-                    | 1 -> key <- entryInput.ReadString()
-                    | 2 -> mapValue <- entryInput.ReadInt32()
-                    | _ -> entryInput.SkipLastField()
-
-                    entryTag <- entryInput.ReadTag()
+                while input.Position < endPos do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(input.ReadTag()) with
+                    | 1 -> key <- input.ReadString()
+                    | 2 -> mapValue <- input.ReadInt32()
+                    | _ -> input.SkipLastField()
 
                 _Scores <- Map.add key mapValue _Scores
             | 8 -> _Rating <- Some(input.ReadDouble())
             | 9 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _Organization <- Some(Organization.decodeFrom subInput)
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Organization.decodeFrom input endPos
+                _Organization <- Some(msg)
             | 10 -> _Contact <- Some(UserContact.PhoneNumber(input.ReadString()))
             | 11 -> _Contact <- Some(UserContact.SlackHandle(input.ReadString()))
             | 12 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _Manager <- Some(User.decodeFrom subInput)
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = User.decodeFrom input endPos
+                _Manager <- Some(msg)
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Id = _Id
           DisplayName = _DisplayName
@@ -762,7 +759,7 @@ module User =
 
     let decode (data: byte array) : User =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: User) : unit =
         writer.WriteStartObject()

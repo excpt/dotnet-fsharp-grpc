@@ -51,22 +51,21 @@ module Card =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Card =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Card =
         let mutable _Number = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Number <- input.ReadString()
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Number = _Number }
 
     let decode (data: byte array) : Card =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Card) : unit =
         writer.WriteStartObject()
@@ -147,22 +146,21 @@ module Payment =
                     output.Flush()
                     buffer
 
-            let decodeFrom (input: Google.Protobuf.CodedInputStream) : Voucher =
+            let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Voucher =
                 let mutable _Code = ""
-                let mutable tag = input.ReadTag()
 
-                while tag <> 0u do
+                while input.Position < endPos do
+                    let tag = input.ReadTag()
+
                     match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
                     | 1 -> _Code <- input.ReadString()
                     | _ -> input.SkipLastField()
-
-                    tag <- input.ReadTag()
 
                 { Code = _Code }
 
             let decode (data: byte array) : Voucher =
                 use input = new Google.Protobuf.CodedInputStream(data)
-                decodeFrom input
+                decodeFrom input (int64 data.Length)
 
             let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Voucher) : unit =
                 writer.WriteStartObject()
@@ -297,13 +295,14 @@ module Payment =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Payment =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Payment =
         let mutable _Id = ""
         let mutable _Method = None
         let mutable _Channel = None
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Id <- input.ReadString()
             | 2 -> _Method <- Some(PaymentMethod.CreditCard(input.ReadString()))
@@ -312,18 +311,19 @@ module Payment =
             | 5 -> _Method <- Some(PaymentMethod.SignedToken(input.ReadBytes().ToByteArray()))
             | 6 -> _Method <- Some(PaymentMethod.Currency(LanguagePrimitives.EnumOfValue(input.ReadInt32())))
             | 7 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _Method <- Some(PaymentMethod.Card(Card.decodeFrom subInput))
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Card.decodeFrom input endPos
+                _Method <- Some(PaymentMethod.Card(msg))
             | 8 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _Method <- Some(PaymentMethod.Voucher(Types.Voucher.decodeFrom subInput))
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Types.Voucher.decodeFrom input endPos
+                _Method <- Some(PaymentMethod.Voucher(msg))
             | 9 -> _Channel <- Some(PaymentChannel.Web(input.ReadString()))
             | 10 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _Channel <- Some(PaymentChannel.MobileCard(Card.decodeFrom subInput))
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Card.decodeFrom input endPos
+                _Channel <- Some(PaymentChannel.MobileCard(msg))
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Id = _Id
           Method = _Method
@@ -331,7 +331,7 @@ module Payment =
 
     let decode (data: byte array) : Payment =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Payment) : unit =
         writer.WriteStartObject()

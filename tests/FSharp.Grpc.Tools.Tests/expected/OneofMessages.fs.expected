@@ -37,24 +37,23 @@ module FileMetadata =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : FileMetadata =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : FileMetadata =
         let mutable _TotalSize = 0UL
         let mutable _Etag = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _TotalSize <- input.ReadUInt64()
             | 2 -> _Etag <- input.ReadString()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
-
         { TotalSize = _TotalSize; Etag = _Etag }
 
     let decode (data: byte array) : FileMetadata =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: FileMetadata) : unit =
         writer.WriteStartObject()
@@ -132,24 +131,23 @@ module FileChunk =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : FileChunk =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : FileChunk =
         let mutable _Data = Array.empty
         let mutable _Offset = 0UL
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Data <- input.ReadBytes().ToByteArray()
             | 2 -> _Offset <- input.ReadUInt64()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
-
         { Data = _Data; Offset = _Offset }
 
     let decode (data: byte array) : FileChunk =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: FileChunk) : unit =
         writer.WriteStartObject()
@@ -240,27 +238,28 @@ module FileResponse =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : FileResponse =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : FileResponse =
         let mutable _Payload = None
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _Payload <- Some(FileResponsePayload.Metadata(FileMetadata.decodeFrom subInput))
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = FileMetadata.decodeFrom input endPos
+                _Payload <- Some(FileResponsePayload.Metadata(msg))
             | 2 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _Payload <- Some(FileResponsePayload.Chunk(FileChunk.decodeFrom subInput))
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = FileChunk.decodeFrom input endPos
+                _Payload <- Some(FileResponsePayload.Chunk(msg))
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Payload = _Payload }
 
     let decode (data: byte array) : FileResponse =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: FileResponse) : unit =
         writer.WriteStartObject()

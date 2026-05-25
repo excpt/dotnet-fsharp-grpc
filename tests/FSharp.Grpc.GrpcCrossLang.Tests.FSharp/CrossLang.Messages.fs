@@ -33,22 +33,22 @@ module HelloRequest =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : HelloRequest =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : HelloRequest =
         let mutable _Name = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Name = _Name }
 
     let decode (data: byte array) : HelloRequest =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
 type HelloReply = { Message: string }
 
@@ -83,22 +83,22 @@ module HelloReply =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : HelloReply =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : HelloReply =
         let mutable _Message = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Message <- input.ReadString()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Message = _Message }
 
     let decode (data: byte array) : HelloReply =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
 type StreamItem = { Value: int }
 
@@ -133,22 +133,22 @@ module StreamItem =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : StreamItem =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : StreamItem =
         let mutable _Value = 0
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Value <- input.ReadInt32()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Value = _Value }
 
     let decode (data: byte array) : StreamItem =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
 type Summary = { Count: int; Total: int }
 
@@ -193,21 +193,21 @@ module Summary =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Summary =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Summary =
         let mutable _Count = 0
         let mutable _Total = 0
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Count <- input.ReadInt32()
             | 2 -> _Total <- input.ReadInt32()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Count = _Count; Total = _Total }
 
     let decode (data: byte array) : Summary =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)

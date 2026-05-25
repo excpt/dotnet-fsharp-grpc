@@ -38,34 +38,33 @@ module WithRepeated =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : WithRepeated =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : WithRepeated =
         let mutable _Tags = []
         let mutable _Scores = []
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Tags <- input.ReadString() :: _Tags
             | 2 ->
                 let wt = Google.Protobuf.WireFormat.GetTagWireType(tag)
 
                 if wt = Google.Protobuf.WireFormat.WireType.LengthDelimited then
-                    use packedInput = input.ReadBytes().CreateCodedInput()
+                    let endPos = int64 (input.ReadLength()) + input.Position
 
-                    while not packedInput.IsAtEnd do
-                        _Scores <- packedInput.ReadInt32() :: _Scores
+                    while input.Position < endPos do
+                        _Scores <- input.ReadInt32() :: _Scores
                 else
                     _Scores <- input.ReadInt32() :: _Scores
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Tags = List.rev _Tags
           Scores = List.rev _Scores }
 
     let decode (data: byte array) : WithRepeated =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithRepeated) : unit =
         writer.WriteStartObject()

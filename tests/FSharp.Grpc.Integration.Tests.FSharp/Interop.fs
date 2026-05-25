@@ -66,24 +66,24 @@ module Person =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Person =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Person =
         let mutable _Name = ""
         let mutable _Age = 0
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Name <- input.ReadString()
             | 2 -> _Age <- input.ReadInt32()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Name = _Name; Age = _Age }
 
     let decode (data: byte array) : Person =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Person) : unit =
         writer.WriteStartObject()
@@ -303,7 +303,7 @@ module ScalarTypes =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : ScalarTypes =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : ScalarTypes =
         let mutable _DoubleField = 0.0
         let mutable _FloatField = 0.0f
         let mutable _Int32Field = 0
@@ -319,9 +319,10 @@ module ScalarTypes =
         let mutable _BoolField = false
         let mutable _StringField = ""
         let mutable _BytesField = Array.empty
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _DoubleField <- input.ReadDouble()
             | 2 -> _FloatField <- input.ReadFloat()
@@ -340,7 +341,6 @@ module ScalarTypes =
             | 15 -> _BytesField <- input.ReadBytes().ToByteArray()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { DoubleField = _DoubleField
           FloatField = _FloatField
@@ -360,7 +360,7 @@ module ScalarTypes =
 
     let decode (data: byte array) : ScalarTypes =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: ScalarTypes) : unit =
         writer.WriteStartObject()
@@ -610,20 +610,20 @@ module Address =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Address =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Address =
         let mutable _Street = ""
         let mutable _City = ""
         let mutable _ZipCode = None
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Street <- input.ReadString()
             | 2 -> _City <- input.ReadString()
             | 3 -> _ZipCode <- Some(input.ReadString())
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Street = _Street
           City = _City
@@ -631,7 +631,7 @@ module Address =
 
     let decode (data: byte array) : Address =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Address) : unit =
         writer.WriteStartObject()
@@ -922,7 +922,7 @@ module UserProfile =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : UserProfile =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : UserProfile =
         let mutable _Id = ""
         let mutable _DisplayName = ""
         let mutable _Status = LanguagePrimitives.EnumOfValue 0
@@ -934,58 +934,55 @@ module UserProfile =
         let mutable _Ratings = Map.empty
         let mutable _Rating = None
         let mutable _Contact = None
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Id <- input.ReadString()
             | 2 -> _DisplayName <- input.ReadString()
             | 3 -> _Status <- LanguagePrimitives.EnumOfValue(input.ReadInt32())
             | 4 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _HomeAddress <- Some(Address.decodeFrom subInput)
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Address.decodeFrom input endPos
+                _HomeAddress <- Some(msg)
             | 5 -> _Tags <- input.ReadString() :: _Tags
             | 6 ->
                 let wt = Google.Protobuf.WireFormat.GetTagWireType(tag)
 
                 if wt = Google.Protobuf.WireFormat.WireType.LengthDelimited then
-                    use packedInput = input.ReadBytes().CreateCodedInput()
+                    let endPos = int64 (input.ReadLength()) + input.Position
 
-                    while not packedInput.IsAtEnd do
-                        _Scores <- packedInput.ReadInt32() :: _Scores
+                    while input.Position < endPos do
+                        _Scores <- input.ReadInt32() :: _Scores
                 else
                     _Scores <- input.ReadInt32() :: _Scores
             | 7 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
-                _OtherAddresses <- Address.decodeFrom subInput :: _OtherAddresses
+                let endPos = int64 (input.ReadLength()) + input.Position
+                let msg = Address.decodeFrom input endPos
+                _OtherAddresses <- msg :: _OtherAddresses
             | 8 ->
-                use entryInput = input.ReadBytes().CreateCodedInput()
+                let endPos = int64 (input.ReadLength()) + input.Position
                 let mutable key = ""
                 let mutable mapValue = ""
-                let mutable entryTag = entryInput.ReadTag()
 
-                while entryTag <> 0u do
-                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
-                    | 1 -> key <- entryInput.ReadString()
-                    | 2 -> mapValue <- entryInput.ReadString()
-                    | _ -> entryInput.SkipLastField()
-
-                    entryTag <- entryInput.ReadTag()
+                while input.Position < endPos do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(input.ReadTag()) with
+                    | 1 -> key <- input.ReadString()
+                    | 2 -> mapValue <- input.ReadString()
+                    | _ -> input.SkipLastField()
 
                 _Metadata <- Map.add key mapValue _Metadata
             | 9 ->
-                use entryInput = input.ReadBytes().CreateCodedInput()
+                let endPos = int64 (input.ReadLength()) + input.Position
                 let mutable key = ""
                 let mutable mapValue = 0
-                let mutable entryTag = entryInput.ReadTag()
 
-                while entryTag <> 0u do
-                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
-                    | 1 -> key <- entryInput.ReadString()
-                    | 2 -> mapValue <- entryInput.ReadInt32()
-                    | _ -> entryInput.SkipLastField()
-
-                    entryTag <- entryInput.ReadTag()
+                while input.Position < endPos do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(input.ReadTag()) with
+                    | 1 -> key <- input.ReadString()
+                    | 2 -> mapValue <- input.ReadInt32()
+                    | _ -> input.SkipLastField()
 
                 _Ratings <- Map.add key mapValue _Ratings
             | 10 -> _Rating <- Some(input.ReadDouble())
@@ -993,7 +990,6 @@ module UserProfile =
             | 12 -> _Contact <- Some(UserProfileContact.Email(input.ReadString()))
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Id = _Id
           DisplayName = _DisplayName
@@ -1009,7 +1005,7 @@ module UserProfile =
 
     let decode (data: byte array) : UserProfile =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: UserProfile) : unit =
         writer.WriteStartObject()

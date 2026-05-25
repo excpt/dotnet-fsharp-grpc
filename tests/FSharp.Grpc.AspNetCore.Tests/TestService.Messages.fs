@@ -33,22 +33,22 @@ module PingRequest =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : PingRequest =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : PingRequest =
         let mutable _Message = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Message <- input.ReadString()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Message = _Message }
 
     let decode (data: byte array) : PingRequest =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: PingRequest) : unit =
         writer.WriteStartObject()
@@ -112,22 +112,22 @@ module PingReply =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : PingReply =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : PingReply =
         let mutable _Message = ""
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Message <- input.ReadString()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Message = _Message }
 
     let decode (data: byte array) : PingReply =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: PingReply) : unit =
         writer.WriteStartObject()
@@ -191,22 +191,22 @@ module StreamItem =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : StreamItem =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : StreamItem =
         let mutable _Value = 0
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Value <- input.ReadInt32()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Value = _Value }
 
     let decode (data: byte array) : StreamItem =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: StreamItem) : unit =
         writer.WriteStartObject()
@@ -280,24 +280,24 @@ module Summary =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Summary =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Summary =
         let mutable _Count = 0
         let mutable _Total = 0
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Count <- input.ReadInt32()
             | 2 -> _Total <- input.ReadInt32()
             | _ -> input.SkipLastField()
 
-            tag <- input.ReadTag()
 
         { Count = _Count; Total = _Total }
 
     let decode (data: byte array) : Summary =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Summary) : unit =
         writer.WriteStartObject()
