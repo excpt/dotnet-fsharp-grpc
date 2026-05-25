@@ -40,13 +40,22 @@
         <_FSharpGrpc_CodegenDll Condition="!Exists('$(_FSharpGrpc_CodegenDll)')">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'bin', '$(Configuration)', 'net8.0', 'FSharp.Grpc.Tools.Codegen.dll'))</_FSharpGrpc_CodegenDll>
     </PropertyGroup>
 
+    <!-- Force regeneration: delete the manifest (the codegen target's output) so the
+         incremental check below sees a missing output and re-runs unconditionally.
+         Use `dotnet build -p:FSharpGrpc_ForceCodegen=true`. -->
+    <Target Name="_FSharpGrpc_ForceCodegen"
+            BeforeTargets="FSharpGrpc_GenerateProto"
+            Condition="'$(FSharpGrpc_ForceCodegen)' == 'true' and '@(Protobuf)' != ''">
+        <Delete Files="$(FSharpGrpc_ManifestPath)" TreatErrorsAsWarnings="true"/>
+    </Target>
+
     <!-- Generate F# from .proto files (single invocation; codegen writes ordered manifest).
          Each <Protobuf> item carries its own GrpcServices value, encoded as "path|Services". -->
     <Target Name="FSharpGrpc_GenerateProto"
             BeforeTargets="BeforeCompile"
             DependsOnTargets="_FSharpGrpc_ResolveProtoc"
             Condition="'@(Protobuf)' != ''"
-            Inputs="@(Protobuf)"
+            Inputs="@(Protobuf);$(_FSharpGrpc_CodegenDll)"
             Outputs="$(FSharpGrpc_ManifestPath)">
 
         <MakeDir Directories="$(FSharpGrpc_OutputDir)"/>
