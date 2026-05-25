@@ -14,6 +14,24 @@ auto-grouping wouldn't capture anything useful.
 <a name="0.1.7"></a>
 ## [0.1.7](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.7) (2026-05-24)
 
+### Fixed
+- `protoc` resolver picks the newest cached `Grpc.Tools` by SemVer instead of lexicographic sort — `2.10.0` previously ranked below `2.9.0` (#15).
+- `protoc` invocation builds its argument list via `ProcessStartInfo.ArgumentList`, so proto paths containing special characters (e.g. a literal `"`) no longer break the command (#15).
+- `--grpc-services` rejects unknown values with a non-zero exit and an error message, instead of silently emitting no stubs (#15).
+- protoc failures surface as a clean error + non-zero exit rather than an unhandled exception (#15).
+- NuGet package `Authors` metadata corrected (#15).
+
+### Changed
+- Generated map `computeSize`/`writeTo` code emits multi-line `for` loops instead of single-line `Map.iter` lambdas — more readable generated output. Partially reverts the 0.1.2 `for..in → Map.iter` change for the map path (#20).
+- Internal codegen refactors, no output change: single-pass field classification (`FieldClass`, #16), message-ref classification (`MessageKind`, #17), centralised wrapper-scalar JSON dispatch, and a widget-built `BindService` body (#20).
+
+### Added
+- `CONTRIBUTING.md` and `docs/tutorial.md` (#15).
+- FsCheck property-based cross-language round-trip tests, complementing the hand-written suite (#20).
+- Backfilled CHANGELOG bodies for every prior release (#20).
+- Codegen tests skip gracefully (rather than fail) when `Grpc.Tools` isn't cached locally (#20).
+
+
 <a name="0.1.6"></a>
 ## [0.1.6](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.6) (2026-05-23)
 
