@@ -142,28 +142,35 @@ Apple M3 Max, .NET 10.0:
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# Encode | 23.12 ns | 112 B |
-| F# Encode | 23.45 ns | 112 B |
-| C# Decode | 40.01 ns | 256 B |
-| F# Decode | 28.97 ns | 248 B |
+| C# Encode | 23.26 ns | 112 B |
+| F# Encode | 22.27 ns | 112 B |
+| C# Decode | 38.94 ns | 256 B |
+| F# Decode | 26.86 ns | 248 B |
 
 **ScalarTypes** (15 fields):
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# Encode | 117.4 ns | 200 B |
-| F# Encode | 171.3 ns | 264 B |
-| C# Decode | 128.1 ns | 424 B |
-| F# Decode | 138.7 ns | 448 B |
+| C# Encode | 111.0 ns | 200 B |
+| F# Encode | 168.8 ns | 264 B |
+| C# Decode | 129.2 ns | 424 B |
+| F# Decode | 139.1 ns | 448 B |
 
 **UserProfile** (enum, nested message, repeated, maps, oneof):
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# Encode | 453.6 ns | 496 B |
-| F# Encode | 442.6 ns | 504 B |
-| C# Decode | 622.5 ns | 2,640 B |
-| F# Decode | 829.0 ns | 5,200 B |
+| C# Encode | 446.9 ns | 496 B |
+| F# Encode | 442.3 ns | 504 B |
+| C# Decode | 616.2 ns | 2,640 B |
+| F# Decode | 546.0 ns | 2,752 B |
+
+**UserProfile, high cardinality** (1,000 repeated ints + 100 nested messages — exercises the sub-message decode path):
+
+| Method | Mean | Allocated |
+|---|---:|---:|
+| C# Decode | 6.79 µs | 24.95 KB |
+| F# Decode | 12.72 µs | 82.3 KB |
 
 ### JSON
 
@@ -171,28 +178,28 @@ Apple M3 Max, .NET 10.0:
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# JSON Encode | 130.54 ns | 568 B |
-| F# JSON Encode | 99.97 ns | 944 B |
-| C# JSON Decode | 207.10 ns | 560 B |
-| F# JSON Decode | 186.04 ns | 216 B |
+| C# JSON Encode | 124.39 ns | 568 B |
+| F# JSON Encode | 99.51 ns | 944 B |
+| C# JSON Decode | 202.54 ns | 560 B |
+| F# JSON Decode | 186.27 ns | 216 B |
 
 **ScalarTypes** (15 fields):
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# JSON Encode | 1,241.1 ns | 3.2 KB |
-| F# JSON Encode | 677.5 ns | 6.91 KB |
-| C# JSON Decode | 1,953.7 ns | 3.45 KB |
-| F# JSON Decode | 1,124.1 ns | 1.27 KB |
+| C# JSON Encode | 1,233.0 ns | 3.2 KB |
+| F# JSON Encode | 659.9 ns | 6.91 KB |
+| C# JSON Decode | 1,938.9 ns | 3.45 KB |
+| F# JSON Decode | 1,129.7 ns | 1.27 KB |
 
 **UserProfile** (enum, nested message, repeated, maps, oneof):
 
 | Method | Mean | Allocated |
 |---|---:|---:|
-| C# JSON Encode | 1,670.5 ns | 4.56 KB |
-| F# JSON Encode | 965.6 ns | 7.69 KB |
-| C# JSON Decode | 2,791.8 ns | 6.42 KB |
-| F# JSON Decode | 2,185.8 ns | 4.28 KB |
+| C# JSON Encode | 1,704.0 ns | 4.56 KB |
+| F# JSON Encode | 931.8 ns | 7.69 KB |
+| C# JSON Decode | 2,712.5 ns | 6.42 KB |
+| F# JSON Decode | 2,153.9 ns | 4.28 KB |
 
 ## Requirements
 
