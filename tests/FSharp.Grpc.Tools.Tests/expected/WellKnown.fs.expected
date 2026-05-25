@@ -140,7 +140,7 @@ module Event =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : Event =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : Event =
         let mutable _Id = ""
         let mutable _CreatedAt = None
         let mutable _Ttl = None
@@ -148,44 +148,37 @@ module Event =
         let mutable _Priority = None
         let mutable _Active = None
         let mutable _Payload = None
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 -> _Id <- input.ReadString()
             | 2 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
                 let msg = Google.Protobuf.WellKnownTypes.Timestamp()
-                msg.MergeFrom(subInput)
+                input.ReadMessage(msg)
                 _CreatedAt <- Some(msg)
             | 3 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
                 let msg = Google.Protobuf.WellKnownTypes.Duration()
-                msg.MergeFrom(subInput)
+                input.ReadMessage(msg)
                 _Ttl <- Some(msg)
             | 4 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
                 let wrapper = Google.Protobuf.WellKnownTypes.StringValue()
-                wrapper.MergeFrom(subInput)
+                input.ReadMessage(wrapper)
                 _Description <- Some(wrapper.Value)
             | 5 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
                 let wrapper = Google.Protobuf.WellKnownTypes.Int32Value()
-                wrapper.MergeFrom(subInput)
+                input.ReadMessage(wrapper)
                 _Priority <- Some(wrapper.Value)
             | 6 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
                 let wrapper = Google.Protobuf.WellKnownTypes.BoolValue()
-                wrapper.MergeFrom(subInput)
+                input.ReadMessage(wrapper)
                 _Active <- Some(wrapper.Value)
             | 7 ->
-                use subInput = input.ReadBytes().CreateCodedInput()
                 let msg = Google.Protobuf.WellKnownTypes.Any()
-                msg.MergeFrom(subInput)
+                input.ReadMessage(msg)
                 _Payload <- Some(msg)
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Id = _Id
           CreatedAt = _CreatedAt
@@ -197,7 +190,7 @@ module Event =
 
     let decode (data: byte array) : Event =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: Event) : unit =
         writer.WriteStartObject()

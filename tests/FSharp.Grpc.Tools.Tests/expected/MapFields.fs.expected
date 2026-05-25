@@ -73,52 +73,45 @@ module WithMap =
             output.Flush()
             buffer
 
-    let decodeFrom (input: Google.Protobuf.CodedInputStream) : WithMap =
+    let decodeFrom (input: Google.Protobuf.CodedInputStream) (endPos: int64) : WithMap =
         let mutable _Labels = Map.empty
         let mutable _Scores = Map.empty
-        let mutable tag = input.ReadTag()
 
-        while tag <> 0u do
+        while input.Position < endPos do
+            let tag = input.ReadTag()
+
             match Google.Protobuf.WireFormat.GetTagFieldNumber(tag) with
             | 1 ->
-                use entryInput = input.ReadBytes().CreateCodedInput()
+                let endPos = int64 (input.ReadLength()) + input.Position
                 let mutable key = ""
                 let mutable mapValue = ""
-                let mutable entryTag = entryInput.ReadTag()
 
-                while entryTag <> 0u do
-                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
-                    | 1 -> key <- entryInput.ReadString()
-                    | 2 -> mapValue <- entryInput.ReadString()
-                    | _ -> entryInput.SkipLastField()
-
-                    entryTag <- entryInput.ReadTag()
+                while input.Position < endPos do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(input.ReadTag()) with
+                    | 1 -> key <- input.ReadString()
+                    | 2 -> mapValue <- input.ReadString()
+                    | _ -> input.SkipLastField()
 
                 _Labels <- Map.add key mapValue _Labels
             | 2 ->
-                use entryInput = input.ReadBytes().CreateCodedInput()
+                let endPos = int64 (input.ReadLength()) + input.Position
                 let mutable key = ""
                 let mutable mapValue = 0
-                let mutable entryTag = entryInput.ReadTag()
 
-                while entryTag <> 0u do
-                    match Google.Protobuf.WireFormat.GetTagFieldNumber(entryTag) with
-                    | 1 -> key <- entryInput.ReadString()
-                    | 2 -> mapValue <- entryInput.ReadInt32()
-                    | _ -> entryInput.SkipLastField()
-
-                    entryTag <- entryInput.ReadTag()
+                while input.Position < endPos do
+                    match Google.Protobuf.WireFormat.GetTagFieldNumber(input.ReadTag()) with
+                    | 1 -> key <- input.ReadString()
+                    | 2 -> mapValue <- input.ReadInt32()
+                    | _ -> input.SkipLastField()
 
                 _Scores <- Map.add key mapValue _Scores
             | _ -> input.SkipLastField()
-
-            tag <- input.ReadTag()
 
         { Labels = _Labels; Scores = _Scores }
 
     let decode (data: byte array) : WithMap =
         use input = new Google.Protobuf.CodedInputStream(data)
-        decodeFrom input
+        decodeFrom input (int64 data.Length)
 
     let writeJsonTo (writer: System.Text.Json.Utf8JsonWriter) (value: WithMap) : unit =
         writer.WriteStartObject()

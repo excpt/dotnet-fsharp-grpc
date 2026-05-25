@@ -45,7 +45,7 @@ type Money = { AmountMicros: int64; Currency: int }
 module Money =
     let computeSize (_: Money) : int = 0
     let writeTo (_: Google.Protobuf.CodedOutputStream) (_: Money) : unit = ()
-    let decodeFrom (_: Google.Protobuf.CodedInputStream) : Money = { AmountMicros = 0L; Currency = 0 }
+    let decodeFrom (_: Google.Protobuf.CodedInputStream) (_: int64) : Money = { AmountMicros = 0L; Currency = 0 }
     let writeJsonTo (_: System.Text.Json.Utf8JsonWriter) (_: Money) : unit = ()
     let decodeJsonElement (_: System.Text.Json.JsonElement) : Money = { AmountMicros = 0L; Currency = 0 }
 """ ]
