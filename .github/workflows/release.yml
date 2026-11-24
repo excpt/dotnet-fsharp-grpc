@@ -7,6 +7,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # NuGet trusted publishing (OIDC)
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -26,8 +29,16 @@ jobs:
       - name: Pack
         run: dotnet pack -c Release --output ./nupkgs
 
+      # Trusted publishing: exchanges the GitHub OIDC token for a short-lived API key.
+      # Needs a matching policy on nuget.org (owner, repo, workflow file release.yml).
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: TimRudat
+
       - name: Push to NuGet
         run: >
           dotnet nuget push ./nupkgs/*.nupkg
           --source "https://api.nuget.org/v3/index.json"
-          --api-key ${{ secrets.NUGET_API_KEY }}
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
