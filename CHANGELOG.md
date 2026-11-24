@@ -11,6 +11,15 @@ no Conventional-Commits convention is enforced in this repo, so
 auto-grouping wouldn't capture anything useful.
 
 
+<a name="0.1.10"></a>
+## [0.1.10](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.10) (2026-11-24)
+
+### Fixed
+- Generated server stubs no longer crash the host at startup when compiled in Release with the .NET 11 SDK. `Grpc.AspNetCore.Server` discovers methods by calling `BindService` with a null service instance; the .NET 11 F# compiler lowers the handler lambda to a delegate bound directly to the virtual method (`ldvirtftn`), which dereferences that null instance and throws `NullReferenceException` out of `MapGrpcService<T>()`. `BindService` now passes a null delegate when the service is null, as the C# generator does (#38).
+
+### Changed
+- `Microsoft.SourceLink.GitHub` 10.0.102 → 10.0.111 (build-time only, GHSA-23fw-v26w-5fgq).
+
 <a name="0.1.9"></a>
 ## [0.1.9](https://www.github.com/excpt/dotnet-fsharp-grpc/releases/tag/v0.1.9) (2026-05-25)
 
