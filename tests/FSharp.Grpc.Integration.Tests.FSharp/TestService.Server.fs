@@ -81,22 +81,34 @@ type TestServiceService(handlers: TestServiceHandlers) =
     static member BindService(binder: ServiceBinderBase, service: TestServiceService) =
         binder.AddMethod(
             TestServiceService.pingMethod,
-            UnaryServerMethod<PingRequest, PingReply>(fun req ctx -> service.Ping(req, ctx))
+            if isNull (box service) then
+                null
+            else
+                UnaryServerMethod<PingRequest, PingReply>(fun req ctx -> service.Ping(req, ctx))
         )
 
         binder.AddMethod(
             TestServiceService.serverStreamMethod,
-            ServerStreamingServerMethod<PingRequest, StreamItem>(fun req stream ctx ->
-                service.ServerStream(req, stream, ctx))
+            if isNull (box service) then
+                null
+            else
+                ServerStreamingServerMethod<PingRequest, StreamItem>(fun req stream ctx ->
+                    service.ServerStream(req, stream, ctx))
         )
 
         binder.AddMethod(
             TestServiceService.clientStreamMethod,
-            ClientStreamingServerMethod<StreamItem, Summary>(fun stream ctx -> service.ClientStream(stream, ctx))
+            if isNull (box service) then
+                null
+            else
+                ClientStreamingServerMethod<StreamItem, Summary>(fun stream ctx -> service.ClientStream(stream, ctx))
         )
 
         binder.AddMethod(
             TestServiceService.bidiStreamMethod,
-            DuplexStreamingServerMethod<StreamItem, StreamItem>(fun reqStream resStream ctx ->
-                service.BidiStream(reqStream, resStream, ctx))
+            if isNull (box service) then
+                null
+            else
+                DuplexStreamingServerMethod<StreamItem, StreamItem>(fun reqStream resStream ctx ->
+                    service.BidiStream(reqStream, resStream, ctx))
         )

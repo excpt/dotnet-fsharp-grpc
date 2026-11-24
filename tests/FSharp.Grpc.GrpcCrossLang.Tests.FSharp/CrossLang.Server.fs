@@ -81,22 +81,34 @@ type CrossLangServiceService(handlers: CrossLangServiceHandlers) =
     static member BindService(binder: ServiceBinderBase, service: CrossLangServiceService) =
         binder.AddMethod(
             CrossLangServiceService.sayHelloMethod,
-            UnaryServerMethod<HelloRequest, HelloReply>(fun req ctx -> service.SayHello(req, ctx))
+            if isNull (box service) then
+                null
+            else
+                UnaryServerMethod<HelloRequest, HelloReply>(fun req ctx -> service.SayHello(req, ctx))
         )
 
         binder.AddMethod(
             CrossLangServiceService.serverStreamMethod,
-            ServerStreamingServerMethod<HelloRequest, StreamItem>(fun req stream ctx ->
-                service.ServerStream(req, stream, ctx))
+            if isNull (box service) then
+                null
+            else
+                ServerStreamingServerMethod<HelloRequest, StreamItem>(fun req stream ctx ->
+                    service.ServerStream(req, stream, ctx))
         )
 
         binder.AddMethod(
             CrossLangServiceService.clientStreamMethod,
-            ClientStreamingServerMethod<StreamItem, Summary>(fun stream ctx -> service.ClientStream(stream, ctx))
+            if isNull (box service) then
+                null
+            else
+                ClientStreamingServerMethod<StreamItem, Summary>(fun stream ctx -> service.ClientStream(stream, ctx))
         )
 
         binder.AddMethod(
             CrossLangServiceService.bidiStreamMethod,
-            DuplexStreamingServerMethod<StreamItem, StreamItem>(fun reqStream resStream ctx ->
-                service.BidiStream(reqStream, resStream, ctx))
+            if isNull (box service) then
+                null
+            else
+                DuplexStreamingServerMethod<StreamItem, StreamItem>(fun reqStream resStream ctx ->
+                    service.BidiStream(reqStream, resStream, ctx))
         )

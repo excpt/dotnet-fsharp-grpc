@@ -16,7 +16,7 @@
         <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0"/>
 
         <!-- Source Link -->
-        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.102"/>
+        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.111"/>
 
         <!-- Code Generation -->
         <PackageVersion Include="Fabulous.AST" Version="1.10.0"/>
