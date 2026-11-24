@@ -7,6 +7,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: Release # must match the nuget.org trusted publishing policy
     permissions:
       id-token: write # NuGet trusted publishing (OIDC)
       contents: read
