@@ -183,6 +183,9 @@ let private delegateLambda (m: MethodDescriptorProto) =
     | true, true -> $"fun reqStream resStream ctx -> service.{m.Name}(reqStream, resStream, ctx)"
 
 /// Build the BindService body as one widget statement per `binder.AddMethod` call.
+/// Grpc.AspNetCore discovers methods by calling BindService with a null service, so the
+/// delegate is only built for a real instance: an optimizing compiler may lower the lambda
+/// to `ldvirtftn`, which dereferences the instance at bind time (#38).
 let private bindServiceStatements
     (serviceName: string)
     (methods: MethodDescriptorProto list)
@@ -193,7 +196,9 @@ let private bindServiceStatements
 
         OtherExpr(
             ConstantExpr(
-                Constant($"binder.AddMethod({serviceName}.{bindingName}, {delegateType m}({delegateLambda m}))")
+                Constant(
+                    $"binder.AddMethod({serviceName}.{bindingName}, if isNull (box service) then null else {delegateType m}({delegateLambda m}))"
+                )
             )
         ))
 

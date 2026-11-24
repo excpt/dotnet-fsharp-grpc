@@ -55,7 +55,7 @@ type TestServiceService(handlers: TestServiceHandlers) =
         handlers.BidiStream requestStream responseStream context
 
     static member BindService(binder: ServiceBinderBase, service: TestServiceService) =
-        binder.AddMethod(TestServiceService.pingMethod, UnaryServerMethod<PingRequest, PingReply>(fun req ctx -> service.Ping(req, ctx)))
-        binder.AddMethod(TestServiceService.serverStreamMethod, ServerStreamingServerMethod<PingRequest, StreamItem>(fun req stream ctx -> service.ServerStream(req, stream, ctx)))
-        binder.AddMethod(TestServiceService.clientStreamMethod, ClientStreamingServerMethod<StreamItem, Summary>(fun stream ctx -> service.ClientStream(stream, ctx)))
-        binder.AddMethod(TestServiceService.bidiStreamMethod, DuplexStreamingServerMethod<StreamItem, StreamItem>(fun reqStream resStream ctx -> service.BidiStream(reqStream, resStream, ctx)))
+        binder.AddMethod(TestServiceService.pingMethod, if isNull (box service) then null else UnaryServerMethod<PingRequest, PingReply>(fun req ctx -> service.Ping(req, ctx)))
+        binder.AddMethod(TestServiceService.serverStreamMethod, if isNull (box service) then null else ServerStreamingServerMethod<PingRequest, StreamItem>(fun req stream ctx -> service.ServerStream(req, stream, ctx)))
+        binder.AddMethod(TestServiceService.clientStreamMethod, if isNull (box service) then null else ClientStreamingServerMethod<StreamItem, Summary>(fun stream ctx -> service.ClientStream(stream, ctx)))
+        binder.AddMethod(TestServiceService.bidiStreamMethod, if isNull (box service) then null else DuplexStreamingServerMethod<StreamItem, StreamItem>(fun reqStream resStream ctx -> service.BidiStream(reqStream, resStream, ctx)))

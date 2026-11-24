@@ -24,5 +24,8 @@ type GreeterService(handlers: GreeterHandlers) =
     static member BindService(binder: ServiceBinderBase, service: GreeterService) =
         binder.AddMethod(
             GreeterService.sayHelloMethod,
-            UnaryServerMethod<HelloRequest, HelloReply>(fun req ctx -> service.SayHello(req, ctx))
+            if isNull (box service) then
+                null
+            else
+                UnaryServerMethod<HelloRequest, HelloReply>(fun req ctx -> service.SayHello(req, ctx))
         )
